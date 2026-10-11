@@ -221,9 +221,10 @@ export const TOOLS: ToolDef[] = [
       const deliverTo = need(args, "deliver_to");
       const credit = creditLine(route, address.place, /^\s*\d+\s+\S/.test(deliverTo) ? null : `${stripFiller(deliverTo)} at ${address.place.address}${address.confirmation ? ` (${address.confirmation})` : ""}`);
       const check = verifyHostCart(need(args, "cart_text"), need(args, "item"), address.place, num(args.max_total_usd));
-      if (str(args.route_id)) scoreDeliveryRoute(route, check.verdict === "pass");
+      const verdictNote = check.verdict === "pass" ? `right item, delivering to ${address.place.address}${check.found.totalUsd !== undefined ? `, $${check.found.totalUsd.toFixed(2)}` : ""}` : check.problems.join("; ");
+      if (str(args.route_id)) scoreDeliveryRoute(route, check.verdict === "pass", verdictNote);
       const attempts: Attempt[] = [
-        { step: "verify cart", agent: route, source: "public-api", outcome: check.verdict === "pass" ? "ok" : "rejected", reason: check.verdict === "pass" ? `right item, delivering to ${address.place.address}${check.found.totalUsd !== undefined ? `, $${check.found.totalUsd.toFixed(2)}` : ""}` : check.problems.join("; "), ms: 0 },
+        { step: "verify cart", agent: route, source: "public-api", outcome: check.verdict === "pass" ? "ok" : "rejected", reason: verdictNote, ms: 0 },
       ];
       const text =
         check.verdict === "pass"

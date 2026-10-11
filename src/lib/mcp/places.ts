@@ -254,6 +254,9 @@ function sameStreetAddress(a: Place, b: Place): boolean {
   return Boolean(a.houseNumber) && a.houseNumber === b.houseNumber && norm(a.street) === norm(b.street);
 }
 
+/** A passing lookup, in words: "found 685 Escondido Road, Stanford, CA 94305". */
+const foundNote = (places: Place[]) => `found ${places[0].address}`;
+
 export async function resolvePlace(
   query: string,
   opts: { near?: string; fetchImpl?: Fetch; savedPlaces?: SavedPlace[]; addressHint?: string } = {},
@@ -270,7 +273,7 @@ export async function resolvePlace(
   const q = saved ? saved.address : [query.trim(), opts.near?.trim()].filter(Boolean).join(", ");
   const f = opts.fetchImpl ?? fetch;
   const chain = [photonProvider(q, f), nominatimProvider(q, f), darwinPlaceProvider(q)];
-  const result = await failover(saved ? "locate saved address" : "resolve address", chain, verifyPlace(q));
+  const result = await failover(saved ? "locate saved address" : "resolve address", chain, verifyPlace(q), { describe: foundNote });
   attempts.push(...result.attempts);
   if (!result.value || !result.provider) {
     return { status: "not_found", place: null, confidence: "none", alternatives: [], attempts };
@@ -319,7 +322,7 @@ async function resolveHint(query: string, hint: string, f: Fetch): Promise<Place
     const street = foldText(places[0].street);
     if (streets.length && !streets.some((st) => street.includes(st))) return `${places[0].address} isn't on ${streets.join(" or ")}, which is where the person said`;
     return null;
-  });
+  }, { describe: foundNote });
   attempts.push(...result.attempts);
   if (!result.value) return { status: "not_found", place: null, confidence: "none", alternatives: [], attempts };
   const place = { ...result.value[0], name: query };

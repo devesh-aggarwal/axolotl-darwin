@@ -49,7 +49,8 @@ export function buildBoards(stats: AgentStats[], history: ScoreHistoryView[], tr
   const historyBy = new Map(history.map((h) => [key(h.agentId, h.capability), h.points]));
   const trustBy = new Map(trust.map((t) => [key(t.agentId, t.capability), t]));
 
-  const real = stats.filter((s) => s.source !== "mock");
+  // Axolotl's own test agents aren't outside agents either, so they stay off the boards too.
+  const real = stats.filter((s) => s.source !== "mock" && !s.testAgent);
   return [...CAPABILITIES, ...MCP_CAPABILITIES].map((capability) => {
     const rows: BoardRow[] = real
       .filter((s) => s.capability === capability)

@@ -63,6 +63,18 @@ CREATE TABLE IF NOT EXISTS agent_score_history (
 );
 CREATE INDEX IF NOT EXISTS idx_history_agent ON agent_score_history(agent_id, capability, id);
 
+-- Every scored attempt with a one-line note (what it got right, or why it failed), for the agent panel on Rankings.
+CREATE TABLE IF NOT EXISTS agent_results (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  agent_id TEXT NOT NULL,
+  capability TEXT NOT NULL,
+  success INTEGER NOT NULL,
+  failure_type TEXT,
+  note TEXT NOT NULL,
+  at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_results_agent ON agent_results(agent_id, capability, id);
+
 -- Trust checks (src/lib/trust): the listing an agent was found with, its trials, and what it did in runs.
 CREATE TABLE IF NOT EXISTS agent_listings (
   agent_id TEXT NOT NULL,

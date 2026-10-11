@@ -41,7 +41,8 @@ export async function failover<T>(
   step: string,
   providers: Provider<T>[],
   verify: (value: T) => string | null,
-  opts: { timeoutMs?: number; now?: () => number } = {},
+  /** describe: a few words on what a passing answer was, for the trace and Rankings ("found 1 Main St"). */
+  opts: { timeoutMs?: number; now?: () => number; describe?: (value: T) => string } = {},
 ): Promise<FailoverResult<T>> {
   const now = opts.now ?? Date.now;
   const timeoutMs = opts.timeoutMs ?? 12_000;
@@ -67,7 +68,7 @@ export async function failover<T>(
         record("rejected", problem);
         continue;
       }
-      record("ok", "answer passed verification");
+      record("ok", opts.describe ? opts.describe(value) : "answer passed verification");
       return { value, provider: p, attempts };
     } catch (err) {
       record(err instanceof BlockedError ? "blocked" : "failed", short((err as Error)?.message ?? String(err)));

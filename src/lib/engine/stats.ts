@@ -40,6 +40,8 @@ export interface AttemptOutcomeRecord {
   capability: ScoredCapability;
   success: boolean;
   failureType?: FailureType;
+  /** One line on what happened: what it got right, or why it failed. Shown in the agent panel on Rankings. */
+  note?: string;
   latencyMs: number;
 }
 
@@ -62,6 +64,14 @@ export function recordAttemptOutcome(o: AttemptOutcomeRecord): AgentStats {
          successes = excluded.successes, failures_json = excluded.failures_json,
          total_latency_ms = excluded.total_latency_ms, updated_at = excluded.updated_at`,
     ).run(o.agent.agentId, o.capability, o.agent.name, o.agent.source, attempts, successes, JSON.stringify(failures), latency, now);
+    db.prepare(`INSERT INTO agent_results (agent_id, capability, success, failure_type, note, at) VALUES (?, ?, ?, ?, ?, ?)`).run(
+      o.agent.agentId,
+      o.capability,
+      o.success ? 1 : 0,
+      o.success ? null : (o.failureType ?? "error"),
+      (o.note ?? "").replace(/\s+/g, " ").trim().slice(0, 500),
+      now,
+    );
     db.prepare(`INSERT INTO agent_score_history (agent_id, capability, score, attempts, at) VALUES (?, ?, ?, ?, ?)`).run(
       o.agent.agentId,
       o.capability,
@@ -116,5 +126,20 @@ export function getScoreHistory(maxPoints = 40): ScoreHistory[] {
 
 export function resetStats(): void {
   const db = getDb();
-  db.exec(`DELETE FROM agent_stats; DELETE FROM agent_score_history;`);
+  db.exec(`DELETE FROM agent_stats; DELETE FROM agent_score_history; DELETE FROM agent_results;`);
+}
+
+export interface ResultRecord {
+  success: boolean;
+  failureType?: FailureType;
+  note: string;
+  at: number;
+}
+
+/** An agent's most recent results on one step, newest first. */
+export function getResults(agentId: string, capability: string, limit = 300): ResultRecord[] {
+  const rows = getDb()
+    .prepare(`SELECT success, failure_type, note, at FROM agent_results WHERE agent_id = ? AND capability = ? ORDER BY id DESC LIMIT ?`)
+    .all(agentId, capability, limit) as { success: number; failure_type: string | null; note: string; at: number }[];
+  return rows.map((r) => ({ success: r.success === 1, ...(r.failure_type ? { failureType: r.failure_type as FailureType } : {}), note: r.note, at: r.at }));
 }

@@ -23,9 +23,9 @@ function failureOf(a: Attempt): FailureType {
   return /timed out/i.test(a.reason) ? "timeout" : "error";
 }
 
-function record(capability: McpCapability, agentId: string, name: string, source: AgentKind, success: boolean, failureType: FailureType | undefined, ms: number) {
+function record(capability: McpCapability, agentId: string, name: string, source: AgentKind, success: boolean, failureType: FailureType | undefined, ms: number, note?: string) {
   try {
-    recordAttemptOutcome({ agent: { agentId, capabilityId: capability, name, source }, capability, success, failureType, latencyMs: ms });
+    recordAttemptOutcome({ agent: { agentId, capabilityId: capability, name, source }, capability, success, failureType, note, latencyMs: ms });
   } catch {
     // Scoring is bookkeeping; a database hiccup must never fail the tool call.
   }
@@ -40,14 +40,14 @@ export function scoreAddressAttempts(attempts: Attempt[]): void {
     // A cross-check that disagrees doesn't say which source was wrong, so it counts for neither.
     if (a.step === "cross-check address" && a.outcome === "rejected") continue;
     const ok = a.outcome === "ok";
-    record("address", `map:${slug(a.agent)}`, a.agent.split(" (")[0], a.source === "darwin" ? "darwin" : "direct", ok, ok ? undefined : failureOf(a), a.ms);
+    record("address", `map:${slug(a.agent)}`, a.agent.split(" (")[0], a.source === "darwin" ? "darwin" : "direct", ok, ok ? undefined : failureOf(a), a.ms, a.reason);
     any = true;
   }
   if (any) publish({ type: "stats_updated", at: Date.now() });
 }
 
 /** Score one delivery route on whether the cart it produced passed Axolotl's cart check. */
-export function scoreDeliveryRoute(routeId: string, passed: boolean): void {
-  record("delivery", `route:${slug(routeId)}`, routeName(routeId), "direct", passed, passed ? undefined : "verification", 0);
+export function scoreDeliveryRoute(routeId: string, passed: boolean, note?: string): void {
+  record("delivery", `route:${slug(routeId)}`, routeName(routeId), "direct", passed, passed ? undefined : "verification", 0, note);
   publish({ type: "stats_updated", at: Date.now() });
 }

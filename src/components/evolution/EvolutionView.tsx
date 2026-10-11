@@ -1,14 +1,15 @@
 "use client";
 // Evolution: per-capability leaderboards. Every checked or failed attempt moves an agent's
 // reliability score, and the router tries higher-scoring agents earlier.
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/components/api";
 import { useAxolotl } from "@/components/store";
 import { Button, Details, Empty } from "@/components/ui/primitives";
 import { fmtClock } from "@/components/ui/tokens";
+import { AgentDetail, type AgentDetailTarget } from "@/components/evolution/AgentDetail";
 import { CapabilityBoard } from "@/components/evolution/CapabilityBoard";
 import { useThrottledLoad } from "@/components/evolution/hooks";
-import { PRIOR_SCORE, SCORE_FORMULA, buildBoards, fmtScore } from "@/components/evolution/leaderboard";
+import { PRIOR_SCORE, SCORE_FORMULA, buildBoards, fmtScore, sourceLabel, type BoardRow } from "@/components/evolution/leaderboard";
 
 const loadStats = () => api.stats();
 const loadTrust = () => api.trust();
@@ -21,6 +22,9 @@ export function EvolutionView() {
   const [resetting, setResetting] = useState(false);
   // Two-step reset inline: window.confirm() is suppressed in the in-app browser.
   const [confirming, setConfirming] = useState(false);
+  const [detail, setDetail] = useState<AgentDetailTarget | null>(null);
+  const closeDetail = useCallback(() => setDetail(null), []);
+  const openDetail = useCallback((row: BoardRow) => setDetail({ agentId: row.agentId, capability: row.capability, name: row.name, sourceLabel: sourceLabel(row) }), []);
 
   useEffect(() => {
     if (!confirming) return;
@@ -105,12 +109,16 @@ export function EvolutionView() {
           </Empty>
         ) : (
           <div className="mx-auto grid max-w-[1200px] gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {boards.map((b) => (
-              <CapabilityBoard key={b.capability} board={b} />
-            ))}
+            {/* Steps no real agent has run yet stay off the page instead of showing an empty board. */}
+            {boards
+              .filter((b) => b.rows.length > 0)
+              .map((b) => (
+                <CapabilityBoard key={b.capability} board={b} onSelect={openDetail} />
+              ))}
           </div>
         )}
       </div>
+      {detail && <AgentDetail target={detail} version={state.statsVersion} onClose={closeDetail} />}
     </div>
   );
 }

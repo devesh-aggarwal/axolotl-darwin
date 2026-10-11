@@ -1,6 +1,7 @@
 // Browser-side API client. Thin wrappers over the route handlers in src/app/api.
 import type { ProductMode } from "@/config/mode";
 import type { NodeTemplate } from "@/config/workflow";
+import type { ResultBreakdown } from "@/lib/engine/resultBreakdown";
 import type {
   AgentStats,
   AttemptView,
@@ -99,6 +100,8 @@ export const api = {
   setChaos: (patch: Partial<ChaosConfig>) => post<{ chaos: ChaosConfig }>("/api/chaos", patch),
   stats: () => call<{ stats: AgentStats[]; history: ScoreHistoryView[] }>("/api/stats"),
   resetStats: () => call<{ ok: boolean }>("/api/stats", { method: "DELETE" }),
+  agentStats: (agentId: string, capability: string) =>
+    call<{ stats: AgentStats; breakdown: ResultBreakdown }>(`/api/stats/agent?agentId=${encodeURIComponent(agentId)}&capability=${encodeURIComponent(capability)}`),
   timelapse: () => call<{ timelapse: TimelapseView | null }>("/api/timelapse"),
   startTimelapse: (opts: { runs?: number; chaosRate?: number; durationMs?: number; seed?: number }) =>
     post<{ timelapse: TimelapseView }>("/api/timelapse", opts),

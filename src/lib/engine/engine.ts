@@ -603,7 +603,7 @@ export class RunEngine {
       }
       attempt.outcome = "passed";
       this.persistAttempt(attempt);
-      this.recordStats(t, agent, true, undefined, attempt.latencyMs);
+      this.recordStats(t, agent, true, undefined, attempt.latencyMs, successNote(output, verification.layers.filter((l) => !l.skipped).length));
       return { ok: true, output, raw: res.raw, corrupted };
     } catch (err) {
       // Aborted attempts are closed by finish(); an attempt that already has a verdict is never judged twice.
@@ -780,15 +780,15 @@ export class RunEngine {
     attempt.finishedAt = Date.now();
     attempt.latencyMs = attempt.finishedAt - attempt.startedAt;
     this.persistAttempt(attempt);
-    this.recordStats(t, agent, false, failureType, attempt.latencyMs);
+    this.recordStats(t, agent, false, failureType, attempt.latencyMs, detail);
     this.update(node, { state: "failed" });
     this.alert(silent ? "warn" : "error", `${node.label}: ${agent.name} ${silent ? "returned bad output" : "failed"} — ${detail}`, node.id);
     return { ok: false, failureType, detail };
   }
 
-  private recordStats(t: NodeTemplate, agent: AgentRef, success: boolean, failureType: FailureType | undefined, latencyMs: number): void {
+  private recordStats(t: NodeTemplate, agent: AgentRef, success: boolean, failureType: FailureType | undefined, latencyMs: number, note?: string): void {
     if (!this.config.recordStats || this.config.baseline) return;
-    recordAttemptOutcome({ agent, capability: t.capability as Capability, success, failureType, latencyMs });
+    recordAttemptOutcome({ agent, capability: t.capability as Capability, success, failureType, note, latencyMs });
     this.emit({ type: "stats_updated", at: Date.now() });
   }
 
@@ -1104,4 +1104,15 @@ class Semaphore {
       this.queue.push(waiter);
     });
   }
+}
+
+/** What a passing attempt delivered, in a few words, for the agent panel on Rankings. */
+function successNote(output: unknown, checks: number): string {
+  const o = output as { pages?: unknown[]; issues?: unknown[]; pagesChecked?: unknown[] } | null;
+  const what = Array.isArray(o?.pages)
+    ? `found ${o.pages.length} ${o.pages.length === 1 ? "page" : "pages"}`
+    : Array.isArray(o?.issues)
+      ? `reported ${o.issues.length} ${o.issues.length === 1 ? "issue" : "issues"}${Array.isArray(o.pagesChecked) ? ` on ${o.pagesChecked.length} ${o.pagesChecked.length === 1 ? "page" : "pages"}` : ""}`
+      : "answered";
+  return `${what}; passed all ${checks} checks`;
 }
