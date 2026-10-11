@@ -1,12 +1,12 @@
 // Per-capability leaderboards built from /api/stats, with each agent's trust verdict when known.
-// Rows rank by score, then speed: the same reliability the router uses to order agents within a tier.
-// Only real agents are ranked: workflow runs on Darwin, and the address lookups and carts the MCP tools
-// verify. Simulated agents still feed the router in demo runs, but they never appear here.
+// Rows rank by pass rate, then attempts, then speed. The router orders agents by a steadier estimate (see stats.ts).
+// Real agents (workflow runs on Darwin, and the address lookups and carts the MCP tools verify) and the
+// simulated agents demo runs use are ranked together; each row says where its results come from.
 import type { ScoreHistoryView } from "@/components/api";
-import { FAILURE_LABEL, VERDICT, fmtMs } from "@/components/ui/tokens";
+import { FAILURE_LABEL, fmtMs } from "@/components/ui/tokens";
 import { CAPABILITIES, MCP_CAPABILITIES, type AgentStats, type FailureType, type ScoredCapability, type TrustReport, type TrustVerdict } from "@/lib/types";
 
-/** Beta-Bernoulli prior with no observations: (0 + 1) / (0 + 2). */
+/** Score shown before an agent's first attempt. */
 export const PRIOR_SCORE = 0.5;
 
 export type HistoryPoint = ScoreHistoryView["points"][number];
@@ -40,6 +40,7 @@ const key = (agentId: string, capability: string) => `${agentId}|${capability}`;
 function compareRows(a: BoardRow, b: BoardRow): number {
   return (
     b.score - a.score ||
+    b.attempts - a.attempts ||
     (a.avgLatencyMs || Number.MAX_SAFE_INTEGER) - (b.avgLatencyMs || Number.MAX_SAFE_INTEGER) ||
     a.name.localeCompare(b.name)
   );
@@ -49,10 +50,10 @@ export function buildBoards(stats: AgentStats[], history: ScoreHistoryView[], tr
   const historyBy = new Map(history.map((h) => [key(h.agentId, h.capability), h.points]));
   const trustBy = new Map(trust.map((t) => [key(t.agentId, t.capability), t]));
 
-  // Axolotl's own test agents aren't outside agents either, so they stay off the boards too.
-  const real = stats.filter((s) => s.source !== "mock" && !s.testAgent);
+  // Axolotl's own test agents aren't outside agents, so they stay off the boards.
+  const ranked = stats.filter((s) => !s.testAgent);
   return [...CAPABILITIES, ...MCP_CAPABILITIES].map((capability) => {
-    const rows: BoardRow[] = real
+    const rows: BoardRow[] = ranked
       .filter((s) => s.capability === capability)
       .map((s) => {
         const k = key(s.agentId, capability);
@@ -91,9 +92,10 @@ export function fmtScore(score: number): string {
 
 /** How scores work, for a hover on the page explanation. */
 export const SCORE_FORMULA =
-  `Score = (passed + 1) / (attempts + 2), shown as a percentage. New agents start at ${fmtScore(PRIOR_SCORE)}; ` +
-  "faster agents win ties. Within free or paid agents, a higher score means the agent is tried earlier. " +
-  "Every attempt counted here was a real call: an audit run on Darwin, an address lookup, or a delivery cart Axolotl checked.";
+  `Score = passed ÷ attempts, so an agent that has never failed shows 100%. New agents start at ${fmtScore(PRIOR_SCORE)}; ` +
+  "ties go to the agent with more attempts, then the faster one. When choosing which agent to try first, Axolotl also weighs " +
+  "how many attempts a score rests on, so one lucky pass doesn't outrank a long record. " +
+  "Attempts come from audit runs, address lookups and delivery carts Axolotl checked. Rows marked Simulated are demo agents.";
 
 /** Detail that stays out of the row and shows on hover. */
 export function describeRow(r: BoardRow): string {
@@ -106,33 +108,43 @@ export function describeRow(r: BoardRow): string {
     const fails = (Object.entries(r.failures) as [FailureType, number][]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
     lines.push(fails.length ? `Failures: ${fails.map(([t, n]) => `${FAILURE_LABEL[t]} ${n}`).join(", ")}` : "No failures");
   }
-  if (r.verdict) lines.push(`Trust check: ${VERDICT[r.verdict].label}${r.trustScore !== undefined ? `, ${r.trustScore} of 100` : ""}`);
   lines.push(SOURCE_DETAIL[sourceKind(r)]);
   return lines.join("\n");
 }
 
-type SourceKind = "darwin" | "direct" | "test" | "map" | "route";
+type SourceKind = "darwin" | "direct" | "test" | "map" | "route" | "simulated";
 type SourceFields = Pick<BoardRow, "source" | "capability" | "testAgent">;
 
 function sourceKind(r: SourceFields): SourceKind {
   if (r.capability === "delivery") return "route";
   if (r.testAgent) return "test";
+  if (r.source === "mock") return "simulated";
   if (r.source === "darwin") return "darwin";
   return r.capability === "address" ? "map" : "direct";
 }
 
-const SOURCE_LABEL: Record<SourceKind, string> = { darwin: "Darwin", direct: "Direct call", test: "Axolotl test agent", map: "Map service", route: "Delivery route" };
+const SOURCE_LABEL: Record<SourceKind, string> = { darwin: "Darwin", direct: "Direct call", test: "Axolotl test agent", map: "Map service", route: "Delivery route", simulated: "Simulated" };
 const SOURCE_DETAIL: Record<SourceKind, string> = {
   darwin: "Darwin agent, run through Darwin",
   direct: "Found on Darwin, called at its own address",
   test: "One of Axolotl's own test agents: real checks on the real page, but not an outside agent",
   map: "Public map service, called by Axolotl's address lookup",
   route: "A delivery route the host took; Axolotl checked the cart it built",
+  simulated: "Simulated demo agent: its results come from demo runs, not an outside service",
 };
 
 /** Where a row's results come from, in a word or two. */
 export function sourceLabel(r: SourceFields): string {
   return SOURCE_LABEL[sourceKind(r)];
+}
+
+/** The row's tag, from its score alone: the same bands as scoreColor. */
+export function scoreLabel(r: Pick<BoardRow, "score" | "attempts">): string {
+  if (!r.attempts) return "New";
+  if (r.score >= 0.9) return "Reliable";
+  if (r.score >= 0.8) return "Good";
+  if (r.score >= 0.55) return "Okay";
+  return "Unreliable";
 }
 
 /** Score band, same thresholds as the reliability meter in the run inspector. */

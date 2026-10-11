@@ -1,8 +1,8 @@
 "use client";
 import { useRef } from "react";
-import { CATEGORY_LABEL, VERDICT } from "@/components/ui/tokens";
+import { CATEGORY_LABEL } from "@/components/ui/tokens";
 import { useFlip } from "@/components/evolution/hooks";
-import { describeRow, scoreColor, sourceLabel, type Board, type BoardRow } from "@/components/evolution/leaderboard";
+import { describeRow, scoreColor, scoreLabel, type Board, type BoardRow } from "@/components/evolution/leaderboard";
 import { ReliabilityBar, Sparkline, TickingScore } from "@/components/evolution/marks";
 
 export function CapabilityBoard({ board, onSelect }: { board: Board; onSelect?: (row: BoardRow) => void }) {
@@ -33,8 +33,6 @@ export function CapabilityBoard({ board, onSelect }: { board: Board; onSelect?: 
 
 function Row({ row, rank, onSelect }: { row: BoardRow; rank: number; onSelect?: (row: BoardRow) => void }) {
   const color = scoreColor(row.score);
-  const verdict = row.verdict ? VERDICT[row.verdict] : null;
-  const kind = sourceLabel(row);
 
   return (
     <li data-flip={row.agentId}>
@@ -49,14 +47,8 @@ function Row({ row, rank, onSelect }: { row: BoardRow; rank: number; onSelect?: 
       <span className={`tabular text-right text-[13px] ${rank === 1 && row.attempts ? "text-ink" : "text-muted"}`}>{rank}</span>
       <div className="min-w-0">
         <div className="line-clamp-2 break-words text-[14px] leading-snug text-ink">{row.name}</div>
-        <div className="mt-0.5 text-[12.5px] text-muted">
-          {kind}
-          {verdict && (
-            <>
-              {" · "}
-              <span style={{ color: verdict.color }}>{verdict.label}</span>
-            </>
-          )}
+        <div className="mt-0.5 text-[12.5px]" style={{ color: row.attempts ? color : "var(--muted)" }}>
+          {scoreLabel(row)}
         </div>
       </div>
       <div className="flex flex-col items-end gap-1.5">

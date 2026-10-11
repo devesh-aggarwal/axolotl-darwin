@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/components/api";
 import { fmtScore } from "@/components/evolution/leaderboard";
 import { CloseIcon, StatusGlyph } from "@/components/ui/primitives";
-import { CATEGORY_LABEL, FAILURE_LABEL, fmtClock, fmtMs } from "@/components/ui/tokens";
+import { FAILURE_LABEL, fmtClock, fmtMs } from "@/components/ui/tokens";
 import type { ResultBreakdown } from "@/lib/engine/resultBreakdown";
 import type { AgentStats } from "@/lib/types";
 
@@ -73,9 +73,6 @@ export function AgentDetail({ target, version, onClose }: { target: AgentDetailT
             <h2 id="agent-detail-title" className="break-words text-[18px] font-semibold leading-snug tracking-[-0.02em] text-ink">
               {target.name}
             </h2>
-            <p className="mt-1 text-[13px] text-muted">
-              {CATEGORY_LABEL[target.capability] ?? target.capability} · {target.sourceLabel}
-            </p>
           </div>
           <button
             ref={closeRef}
@@ -111,7 +108,7 @@ export function AgentDetail({ target, version, onClose }: { target: AgentDetailT
                 {s.successes === 0 ? (
                   <p className="mt-1.5 text-[13.5px] text-muted">No answer has passed Axolotl&rsquo;s checks yet.</p>
                 ) : b.wins.recent.length === 0 ? (
-                  <p className="mt-1.5 text-[13.5px] text-muted">Passed {s.successes} {s.successes === 1 ? "time" : "times"} before Axolotl kept notes.</p>
+                  <p className="mt-1.5 text-[13.5px] text-muted">Passed {s.successes} {s.successes === 1 ? "time" : "times"}, all before results were written down. New passes will show here.</p>
                 ) : (
                   <ul className="mt-2.5 flex flex-col gap-2">
                     {b.wins.recent.map((w, i) => (
@@ -139,7 +136,7 @@ export function AgentDetail({ target, version, onClose }: { target: AgentDetailT
                 {failures === 0 ? (
                   <p className="mt-1.5 text-[13.5px] text-muted">No failures yet.</p>
                 ) : b.losses.groups.length === 0 ? (
-                  <p className="mt-1.5 text-[13.5px] text-muted">These failures happened before Axolotl kept notes.</p>
+                  <p className="mt-1.5 text-[13.5px] text-muted">These failures came before results were written down. New failures will show here.</p>
                 ) : (
                   <ul className="mt-3 flex flex-col gap-5">
                     {b.losses.groups.map((g) => (
@@ -175,7 +172,7 @@ export function AgentDetail({ target, version, onClose }: { target: AgentDetailT
 
               {b.unrecorded > 0 && b.wins.recent.length + b.losses.groups.length > 0 && (
                 <p className="mt-6 text-[13px] text-muted">
-                  {b.unrecorded} earlier {b.unrecorded === 1 ? "result was" : "results were"} scored before Axolotl kept notes.
+                  {b.unrecorded} older {b.unrecorded === 1 ? "result has" : "results have"} a score but no written result.
                 </p>
               )}
             </>

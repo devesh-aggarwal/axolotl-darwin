@@ -37,7 +37,6 @@ export function EvolutionView() {
     return buildBoards(stats.data.stats, stats.data.history, trust.data?.reports);
   }, [stats.data, trust.data]);
 
-  // Simulated agents are left off the boards, so only real rows count as "has data".
   const hasStats = Boolean(boards?.some((b) => b.rows.length));
   const lastUpdated = useMemo(() => stats.data?.stats.reduce((m, s) => Math.max(m, s.updatedAt), 0) ?? 0, [stats.data]);
 
@@ -60,9 +59,7 @@ export function EvolutionView() {
         <div className="min-w-[280px] flex-1">
           <h1 className="text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink">Agent reliability</h1>
           <p className="mt-1.5 max-w-[64ch] text-[14.5px] leading-relaxed text-muted">
-            Agents are ranked by how often their work passes Axolotl&rsquo;s checks. When a step needs an agent, the most reliable ones are tried
-            first. Scores come from real calls only: audit runs on Darwin, and the address lookups and delivery carts Axolotl checks through
-            its MCP tools.
+            Agents are ranked by past performance on real tasks.
           </p>
           <div className="mt-2">
             <Details summary="How scores work">

@@ -1,6 +1,7 @@
 // Durable state in SQLite (spec section 7.1): runs, node instances, attempts, agent stats,
 // trust checks, pools, LLM cache. Synchronous better-sqlite3; one connection per process.
 import Database from "better-sqlite3";
+import { loadRankings, snapshotPath } from "@/lib/engine/rankingsSnapshot";
 import fs from "node:fs";
 import path from "node:path";
 import { env } from "@/lib/env";
@@ -135,11 +136,15 @@ export function getDb(): Database.Database {
   if (g.__axolotlDb) return g.__axolotlDb;
   const dir = path.resolve(process.cwd(), env.dataDir);
   fs.mkdirSync(dir, { recursive: true });
-  const db = new Database(path.join(dir, "axolotl.db"));
+  const file = path.join(dir, "axolotl.db");
+  const fresh = !fs.existsSync(file);
+  const db = new Database(file);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.pragma("synchronous = NORMAL");
   db.exec(SCHEMA);
+  // A new database starts from the committed rankings; an existing one (even after Reset) is left alone.
+  if (fresh) loadRankings(db, snapshotPath(dir));
   g.__axolotlDb = db;
   return db;
 }

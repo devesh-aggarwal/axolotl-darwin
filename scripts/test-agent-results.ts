@@ -18,7 +18,7 @@ async function main() {
   const { scoreAddressAttempts, scoreDeliveryRoute } = await import("@/lib/mcp/scoring");
   const { getAllStats, getResults, recordAttemptOutcome, resetStats } = await import("@/lib/engine/stats");
   const { breakdownResults, notePattern } = await import("@/lib/engine/resultBreakdown");
-  const { buildBoards } = await import("@/components/evolution/leaderboard");
+  const { buildBoards, sourceLabel } = await import("@/components/evolution/leaderboard");
   const { failover } = await import("@/lib/mcp/failover");
   const stat = (name: string) => getAllStats().find((s) => s.name === name);
 
@@ -62,13 +62,29 @@ async function main() {
   expect("every result is accounted for", bd.unrecorded === 0 && bd.wins.recorded + bd.losses.recorded === p.attempts);
   expect("results from before notes are counted, not invented", breakdownResults(p.attempts + 3, getResults(p.agentId, "address")).unrecorded === 3);
 
-  // Nothing simulated on the boards: mock agents and Axolotl's own test agents stay off.
+  // Simulated agents are ranked, labelled Simulated; Axolotl's own test agents stay off.
   recordAttemptOutcome({ agent: { agentId: "mock:crawl:a", capabilityId: "x", name: "Sim crawler", source: "mock" }, capability: "crawl", success: true, latencyMs: 5 });
   const stats = getAllStats().map((s) => (s.agentId === "map:openstreetmap-nominatim" ? { ...s, testAgent: true } : s));
   const shown = buildBoards(stats, []).flatMap((b) => b.rows.map((r) => r.name));
-  expect("simulated agents never appear on the boards", !shown.includes("Sim crawler"), shown.join(", "));
+  expect("simulated agents appear on the boards", shown.includes("Sim crawler"), shown.join(", "));
+  const sim = buildBoards(stats, []).flatMap((b) => b.rows).find((r) => r.name === "Sim crawler");
+  expect("and say they are simulated", Boolean(sim) && sourceLabel(sim!) === "Simulated");
   expect("Axolotl's own test agents never appear either", !shown.includes("OpenStreetMap Nominatim"), shown.join(", "));
   expect("real agents do", shown.includes("Photon geocoder"), shown.join(", "));
+
+  // Snapshot round trip: saved rankings fill a new, empty database exactly.
+  const { saveRankings, loadRankings } = await import("@/lib/engine/rankingsSnapshot");
+  const { getDb } = await import("@/lib/db");
+  const Database = (await import("better-sqlite3")).default;
+  const snapFile = path.join(process.env.AXOLOTL_DATA_DIR!, "rankings.json");
+  const saved = saveRankings(getDb(), snapFile);
+  const copy = new Database(":memory:");
+  copy.exec(fs.readFileSync("src/lib/db.ts", "utf8").split("const SCHEMA = `")[1].split("`;")[0]);
+  loadRankings(copy, snapFile);
+  const count = (t: string) => (copy.prepare(`SELECT count(*) AS n FROM ${t}`).get() as { n: number }).n;
+  expect("snapshot restores every agent and result", count("agent_stats") === saved.agents && count("agent_results") === saved.results && saved.results > 0);
+  loadRankings(copy, snapFile);
+  expect("snapshot never loads twice", count("agent_stats") === saved.agents);
 
   resetStats();
   expect("reset clears scores and notes", getAllStats().length === 0 && getResults(p.agentId, "address").length === 0);

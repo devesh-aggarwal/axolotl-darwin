@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "rankings:save": "tsx scripts/save-rankings.ts"
   },
   "dependencies": {
     "@xyflow/react": "^12.12.0",

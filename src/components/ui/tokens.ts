@@ -114,10 +114,10 @@ export function shortPath(url: string | undefined): string {
 
 /** Trust check verdicts in plain words, with the color they carry. */
 export const VERDICT: Record<TrustVerdict, { label: string; color: string; title: string }> = {
-  trusted: { label: "Trusted", color: "var(--s-passed)", title: "Safe, free, and proven accurate" },
-  untested: { label: "Untested", color: "var(--muted)", title: "Nothing wrong found, but its accuracy hasn't been measured yet" },
-  caution: { label: "Caution", color: "var(--s-verifying)", title: "Usable, but the trust check found something worth reading" },
-  avoid: { label: "Unsafe", color: "var(--s-failed)", title: "Failed the safety check, so Axolotl never calls it" },
+  trusted: { label: "Good", color: "var(--s-passed)", title: "Safe, free, and proven accurate" },
+  untested: { label: "New", color: "var(--muted)", title: "Nothing wrong found, but its accuracy hasn't been measured yet" },
+  caution: { label: "Some concerns", color: "var(--s-verifying)", title: "Usable, but the trust check found something worth reading" },
+  avoid: { label: "Blocked", color: "var(--s-failed)", title: "Failed the safety check, so Axolotl never calls it" },
 };
 
 /** Dollars from cents: "$0.04", "$1", "$2.50". */

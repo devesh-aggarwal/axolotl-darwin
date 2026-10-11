@@ -1,10 +1,16 @@
-// Reliability scoring (spec 7.5): per agent per capability, Beta-Bernoulli
-// (successes + 1) / (attempts + 2), latency as tiebreak.
+// Reliability scoring (spec 7.5), per agent per capability. The score shown everywhere is the pass rate
+// (an agent that has never failed shows 100%); routing orders agents by the Beta-Bernoulli estimate
+// (successes + 1) / (attempts + 2) so one lucky pass doesn't jump an agent ahead of a proven one.
 import { getDb, json } from "@/lib/db";
 import type { AgentRef, AgentStats, FailureType, ScoredCapability } from "@/lib/types";
 
 export function betaScore(successes: number, attempts: number): number {
   return (successes + 1) / (attempts + 2);
+}
+
+/** Share of attempts that passed; 50% before the first attempt. */
+export function passRate(successes: number, attempts: number): number {
+  return attempts ? successes / attempts : 0.5;
 }
 
 interface StatsRow {
@@ -29,7 +35,7 @@ function rowToStats(r: StatsRow): AgentStats {
     successes: r.successes,
     failures: json<AgentStats["failures"]>(r.failures_json, {}),
     totalLatencyMs: r.total_latency_ms,
-    score: betaScore(r.successes, r.attempts),
+    score: passRate(r.successes, r.attempts),
     avgLatencyMs: r.attempts ? Math.round(r.total_latency_ms / r.attempts) : 0,
     updatedAt: r.updated_at,
   };
@@ -75,7 +81,7 @@ export function recordAttemptOutcome(o: AttemptOutcomeRecord): AgentStats {
     db.prepare(`INSERT INTO agent_score_history (agent_id, capability, score, attempts, at) VALUES (?, ?, ?, ?, ?)`).run(
       o.agent.agentId,
       o.capability,
-      betaScore(successes, attempts),
+      passRate(successes, attempts),
       attempts,
       now,
     );

@@ -11,6 +11,7 @@ import { YOUR_AGENTS } from "@/lib/darwin/mockCatalog";
 import { pinnedAgents } from "@/lib/darwin/providerEndpoints";
 import type { SearchResult } from "@/lib/darwin/types";
 import { actConfigured, getDarwinClient } from "@/lib/engine/clients";
+import { betaScore } from "@/lib/engine/stats";
 import { env } from "@/lib/env";
 import { NO_INCIDENTS, assessTrust } from "@/lib/trust/assess";
 import { incidentCounts, latestTrial, rememberListing, toListing } from "@/lib/trust/store";
@@ -209,7 +210,10 @@ export interface OrderedRoute {
  */
 export function orderRoute(d: Discovery, capability: Capability, stats: Map<string, AgentStats>, rand?: () => number, baseline = false): OrderedRoute {
   const st = (a: AgentRef) => stats.get(`${a.agentId}|${capability}`);
-  const score = (v: VettedAgent) => st(v.agent)?.score ?? 0.5;
+  const score = (v: VettedAgent) => {
+    const s = st(v.agent);
+    return s ? betaScore(s.successes, s.attempts) : 0.5;
+  };
   const latency = (v: VettedAgent) => st(v.agent)?.avgLatencyMs || Number.MAX_SAFE_INTEGER;
 
   let ordered: VettedAgent[];
