@@ -81,8 +81,7 @@ export function RunSummaryPanel() {
         </div>
         {run.stats?.recall !== undefined && (
           <div className="mt-4 text-[13.5px] text-muted">
-            Caught {Math.round(run.stats.recall * 100)}% of the problems we planted in the demo site
-.
+            Caught {Math.round(run.stats.recall * 100)}% of the problems we planted in the demo site.
           </div>
         )}
         {Boolean(run.stats?.spentCents) && (
