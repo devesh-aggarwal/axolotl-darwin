@@ -68,7 +68,7 @@ export function RunSummaryPanel() {
         <div className="mt-1 text-[13.5px] text-muted">
           {done === nodes.length && nodes.length > 0 ? `All ${nodes.length} steps done` : `${done} of ${nodes.length} steps done`} · {siteName(run.config.siteUrl)}
         </div>
-        <div key={run.id} className="mt-5 grid grid-cols-[1.25fr_1fr_1fr] items-end gap-3">
+        <div key={run.id} className="mt-5 grid grid-cols-[1.25fr_1fr_1fr] items-start gap-3">
           <Stat
             label={needsYou === 1 ? "Step needs you" : "Steps need you"}
             value={String(needsYou)}
@@ -76,8 +76,8 @@ export function RunSummaryPanel() {
             color={needsYou ? "var(--s-failed)" : "var(--s-passed)"}
             hint={needsYou ? "Every agent found for these steps failed, so someone has to look at them" : "Every step finished or recovered on its own"}
           />
-          <Stat label={copy.recovered} value={<CountUp value={recoveries} />} color={recoveries ? "var(--regrow)" : undefined} />
-          <Stat label="Problems found" value={issues === undefined ? "—" : <CountUp value={issues} />} />
+          <Stat label={copy.recovered} value={<CountUp value={recoveries} />} size="lg" color={recoveries ? "var(--regrow)" : undefined} />
+          <Stat label="Problems found" value={issues === undefined ? "—" : <CountUp value={issues} />} size="lg" />
         </div>
         {run.stats?.recall !== undefined && (
           <div className="mt-4 text-[13.5px] text-muted">
