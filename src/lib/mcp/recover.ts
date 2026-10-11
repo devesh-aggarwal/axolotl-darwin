@@ -1,6 +1,6 @@
 // Failure triage: given what an agent was trying to do and how it failed, say what kind of failure
 // it was and the next concrete move, instead of handing the problem back to the person.
-import { describeAgent, findAgents } from "@/lib/mcp/agents";
+import { routeAgents } from "@/lib/mcp/agents";
 
 export type FailureKind = "needs_input" | "capability_missing" | "auth_or_payment" | "transient" | "wrong_output" | "unknown";
 
@@ -65,7 +65,7 @@ export async function planRecovery(goal: string, failure: string, failedTool?: s
       break;
     case "auth_or_payment":
       plan.diagnosis = "The step hit a login or payment wall.";
-      plan.nextAction = "Don't bypass it. Use an alternative that's already approved, or ask the person to approve this one once (Axolotl pre-approves backups so a 3am swap never needs this).";
+      plan.nextAction = "Don't bypass it. Switch to an alternative that needs no sign-in or payment (the list below already leaves those out), or ask the person to handle this one.";
       break;
     case "transient":
       plan.diagnosis = "Looks temporary (timeout, rate limit or server error).";
@@ -84,9 +84,10 @@ export async function planRecovery(goal: string, failure: string, failedTool?: s
     try {
       // Darwin matches capabilities, not whole requests; a known domain gets a capability-shaped query.
       const query = isFood ? "food delivery agent that adds restaurant menu items to a cart for delivery" : goal;
-      const found = await findAgents(query, 4);
-      plan.alternatives = found.agents.map(describeAgent);
-      plan.searchNote = found.agents.length ? `Darwin search for "${query}"` : `Darwin found no agents for "${query}"`;
+      const r = await routeAgents(query);
+      plan.alternatives = r.runnable.slice(0, 4).map((a) => ({ name: a.agent.name, tier: a.tier, why: a.reason, what: a.candidate?.description.slice(0, 200) ?? "" }));
+      const left = r.skipped.length ? `; ${r.skipped.length} found but left out (first: ${r.skipped[0].agent.name}, ${r.skipped[0].reason.toLowerCase()})` : "";
+      plan.searchNote = r.runnable.length ? `Darwin agents that can run now for "${query}"${left}` : `No Darwin agent for "${query}" can run unattended right now${left}`;
     } catch (err) {
       plan.searchNote = `Darwin search failed (${(err as Error).message})`;
     }

@@ -11,7 +11,7 @@ a failing step. It is stateless JSON-RPC over Streamable HTTP and needs no extra
 | `axolotl_add_to_cart` | Resolves the address, skips platforms with no cart tool, fails over across delivery agents, verifies the cart (item, area, address, budget), stops at checkout | Address is real; delivery platforms are **simulated** (labelled in every answer) |
 | `axolotl_checkout` | Marks the cart as placed after the person says yes | Simulated: nothing is sent or charged |
 | `axolotl_recover` | Takes a goal and a failure text; returns the failure type, the next step and Darwin alternatives | Real (rules plus Darwin Search) |
-| `axolotl_find_agents` | Darwin Search, cached, retried on Darwin's intermittent 500s | Real |
+| `axolotl_find_agents` | Darwin Search vetted by the engine's routing rules (`discover` + `orderRoute`): agents that can run now in try order, plus the ones left out and why. Takes `budget_cents` | Real |
 | `axolotl_start_site_audit` / `axolotl_get_run` | Starts and reports on the self-healing website audit. The live graph is on the Run screen | Same as the app (simulated agents by default) |
 
 Providers run cheapest reliable first: free, then Darwin, then simulated. Every answer lists each provider tried, how it ended, and why.

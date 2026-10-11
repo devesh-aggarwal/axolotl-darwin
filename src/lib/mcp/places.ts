@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { actConfigured, getDarwinClient } from "@/lib/engine/clients";
 import { env } from "@/lib/env";
-import { findAgents } from "@/lib/mcp/agents";
+import { routeAgents } from "@/lib/mcp/agents";
 import { failover, type Attempt, type Provider } from "@/lib/mcp/failover";
 
 export interface Place {
@@ -94,6 +94,8 @@ export function nominatimProvider(query: string, fetchImpl: Fetch = fetch): Prov
   };
 }
 
+const ADDRESS_QUERY = "find the street address of a business or place by name";
+
 /** A Darwin agent that finds business addresses. Runs only with Act access; otherwise skipped, with the reason. */
 export function darwinPlaceProvider(query: string): Provider<Place[]> {
   let agentName = "Darwin address agent";
@@ -102,22 +104,23 @@ export function darwinPlaceProvider(query: string): Provider<Place[]> {
     source: "darwin",
     precheck: async () => {
       if (!actConfigured()) return "Darwin Act access isn't granted yet (pilot allowlist), so no Darwin agent can run unattended";
-      const found = await findAgents("find the street address of a business or place by name", 1).catch(() => null);
-      const top = found?.agents[0];
-      if (!top) return "Darwin search found no address agent right now";
-      agentName = top.name;
+      const r = await routeAgents(ADDRESS_QUERY).catch(() => null);
+      const top = r?.runnable[0];
+      if (!top) return r?.skipped[0] ? `Darwin's address agents can't run unattended (${r.skipped[0].reason.toLowerCase()})` : "Darwin search found no address agent right now";
+      agentName = top.agent.name;
       return null;
     },
     run: async () => {
       // Act runs are polled through the shared client; parse the first US-style street address in the answer.
       const client = getDarwinClient("darwin");
-      const found = await findAgents("find the street address of a business or place by name", 1);
-      const agent = found.agents[0];
+      const r = await routeAgents(ADDRESS_QUERY);
+      const agent = r.runnable[0]?.candidate;
+      if (!agent) throw new Error("no runnable Darwin address agent");
       const handle = await client.startTask({
         agent,
         instruction: `What is the full street address of "${query}"? Answer with the address only.`,
         idempotencyKey: `place-${Date.now()}`,
-        searchId: found.searchId,
+        searchId: r.searchId,
         context: { runId: "mcp", nodeInstanceId: "resolve_place", capability: "crawl", input: { siteUrl: "", maxPages: 1 }, seed: 0, attemptNo: 1, timeScale: 1 },
       });
       for (let i = 0; i < 20; i++) {

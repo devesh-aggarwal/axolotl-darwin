@@ -3,7 +3,7 @@
 // restaurants, no real cart, nothing charged), and every answer says so. Address resolution is real.
 import { randomUUID } from "node:crypto";
 import { actConfigured } from "@/lib/engine/clients";
-import { findAgents } from "@/lib/mcp/agents";
+import { routeAgents } from "@/lib/mcp/agents";
 import { BlockedError, failover, type Attempt, type Provider } from "@/lib/mcp/failover";
 import { resolvePlace, type Place, type PlaceResolution } from "@/lib/mcp/places";
 
@@ -205,7 +205,7 @@ function simulatedPlatform(p: Platform, req: OrderRequest, address: Place, area:
 
 /** Real Darwin delivery agents, tried first. Without Act access they're listed and skipped. */
 async function darwinPlatforms(): Promise<{ providers: Provider<Cart>[]; attempts: Attempt[] }> {
-  // Without Act no Darwin agent can run, so don't spend a search (and its latency) finding one.
+  // Without Act no Darwin delivery agent's cart can be read back, so don't spend a search (and its latency) finding one.
   if (!actConfigured()) {
     return {
       providers: [],
@@ -214,20 +214,21 @@ async function darwinPlatforms(): Promise<{ providers: Provider<Cart>[]; attempt
   }
   const query = "food delivery agent that adds restaurant menu items to a cart for delivery";
   try {
-    const found = await findAgents(query, 3);
-    const providers = found.agents.slice(0, 2).map<Provider<Cart>>((a) => ({
-      name: a.name,
+    const routed = await routeAgents(query);
+    const providers = routed.runnable.slice(0, 2).map<Provider<Cart>>((a) => ({
+      name: a.agent.name,
       source: "darwin",
       precheck: () => "found on Darwin, but its cart output isn't mapped yet; using the next backup",
       run: async () => {
         throw new BlockedError("unreachable");
       },
     }));
-    return { providers, attempts: [] };
+    const attempts: Attempt[] = routed.skipped.slice(0, 2).map((sk) => ({ step: "find delivery agents", agent: sk.agent.name, source: "darwin", outcome: "skipped", reason: sk.reason, ms: 0 }));
+    return { providers, attempts };
   } catch (err) {
     return {
       providers: [],
-      attempts: [{ step: "find delivery agents", agent: "Darwin Search", source: "darwin", outcome: "failed", reason: `search failed (${(err as Error).message}); using pre-approved backups`, ms: 0 }],
+      attempts: [{ step: "find delivery agents", agent: "Darwin Search", source: "darwin", outcome: "failed", reason: `search failed (${(err as Error).message}); using backups`, ms: 0 }],
     };
   }
 }

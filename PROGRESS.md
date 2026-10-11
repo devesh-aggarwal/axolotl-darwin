@@ -130,4 +130,4 @@ Axolotl is also an MCP server at `/api/mcp`, so ChatGPT, Codex or Claude Code ca
 - **Simulated (labelled in every answer):** food-delivery platforms and carts. Nothing is ever ordered or charged.
 - **Tested:** `scripts/test-mcp.ts` (16 checks, fake and `--live`). One real `claude -p` run with only this MCP connected took the one-shot crêpe prompt to a verified cart. A single call takes about 2 s.
 - **Auto-trigger:** `integrations/hooks/axolotl-stop-hook.mjs`, a Stop hook for Claude Code and Codex. Not installed anywhere yet.
-- **Pending:** switch `findAgents` to `engine/discovery.ts` (`discover` + `orderRoute`) once the `runtime-discovery` branch is merged.
+- **Same routing rules as the engine:** `routeAgents()` in `src/lib/mcp/agents.ts` runs Darwin results through `discover()` + `orderRoute()`. Unsafe, sign-in-only and uncallable agents are left out with a reason; free agents come before paid. `axolotl_start_site_audit` takes `budget_cents`.

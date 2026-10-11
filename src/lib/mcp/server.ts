@@ -5,7 +5,7 @@ import { isDemoSite } from "@/lib/audit/groundTruth";
 import { buildReport } from "@/lib/engine/report";
 import { getActiveRunId, getRunRecord, startRun } from "@/lib/engine/runtime";
 import { demoSiteUrl, env } from "@/lib/env";
-import { describeAgent, findAgents } from "@/lib/mcp/agents";
+import { routeAgents } from "@/lib/mcp/agents";
 import { renderAttempts, type Attempt } from "@/lib/mcp/failover";
 import { confirmOrder, orderFood, type DemoFault } from "@/lib/mcp/ordering";
 import { resolvePlace } from "@/lib/mcp/places";
@@ -168,12 +168,14 @@ export const TOOLS: ToolDef[] = [
   {
     name: "axolotl_find_agents",
     title: "Find agents for a capability",
-    description: "Search Darwin (about 200K agents) for agents that can do a capability, ranked, with why each matched and its caveats.",
+    description:
+      "Search Darwin (about 200K agents) for agents that can do a capability. Results are vetted and ordered the way Axolotl routes work: " +
+      "unsafe listings, agents that need a sign-in, and agents that can't be called are left out (with the reason); free agents come before paid ones, and paid ones only within budget_cents.",
     inputSchema: {
       type: "object",
       properties: {
         capability: { type: "string", description: "What the agent must do, in plain English" },
-        max_results: { type: "integer", minimum: 1, maximum: 10 },
+        budget_cents: { type: "integer", minimum: 0, maximum: 10000, description: "Most a paid agent may charge per call. 0 (default) means free agents only." },
       },
       required: ["capability"],
     },
@@ -181,10 +183,22 @@ export const TOOLS: ToolDef[] = [
     call: async (args) => {
       const q = need(args, "capability");
       try {
-        const found = await findAgents(q, Math.round(Math.min(10, Math.max(1, num(args.max_results) ?? 5))));
-        const agents = found.agents.map(describeAgent);
-        const text = agents.length ? agents.map((a, i) => `${i + 1}. ${a.name}: ${a.what}`).join("\n") : `Darwin found no agents for "${q}". ${found.note ?? ""}`;
-        return { text, structured: { searchId: found.searchId, agents } };
+        const r = await routeAgents(q, { budgetCents: Math.round(Math.min(10000, Math.max(0, num(args.budget_cents) ?? 0))) });
+        const runnable = r.runnable.map((a, i) => `${i + 1}. ${a.agent.name} [${a.tier}]: ${a.reason}`);
+        const skipped = r.skipped.slice(0, 6).map((s) => `- ${s.agent.name}: ${s.reason}`);
+        const text =
+          (runnable.length ? `Can run now, in the order Axolotl would try them:\n${runnable.join("\n")}` : `No agent for "${q}" can run unattended right now.`) +
+          (skipped.length ? `\n\nFound but left out:\n${skipped.join("\n")}${r.skipped.length > 6 ? `\n(and ${r.skipped.length - 6} more)` : ""}` : "") +
+          (r.notes.length ? `\n\n${r.notes.join("\n")}` : "");
+        return {
+          text,
+          structured: {
+            searchId: r.searchId,
+            runnable: r.runnable.map(({ candidate, ...a }) => ({ ...a, what: candidate?.description.slice(0, 240) })),
+            skipped: r.skipped,
+            notes: r.notes,
+          },
+        };
       } catch (err) {
         return { text: `Darwin search failed twice: ${(err as Error).message}. Try a simpler description.`, structured: {}, isError: true };
       }
@@ -195,12 +209,13 @@ export const TOOLS: ToolDef[] = [
     title: "Start a self-healing website audit",
     description:
       "Start Axolotl's overnight pre-launch website audit (crawl, accessibility, performance, SEO, security headers, broken links, then a prioritized fix plan). " +
-      "Failed steps swap to pre-approved backup agents and every answer is verified. Returns a run id and a live dashboard link.",
+      "Each step finds its agents at run time (free before paid, within budget), failed steps swap to the next agent, and every answer is verified. Returns a run id and a live dashboard link.",
     inputSchema: {
       type: "object",
       properties: {
         site_url: { type: "string", description: "Site to audit. Defaults to the demo site." },
         chaos: { type: "boolean", description: "Inject random agent failures to show recovery" },
+        budget_cents: { type: "integer", minimum: 0, maximum: 10000, description: "Spending limit for paid agents across the run. 0 (default) means free agents only." },
       },
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
@@ -209,7 +224,8 @@ export const TOOLS: ToolDef[] = [
       if (!isDemoSite(siteUrl) && process.env.AXOLOTL_MCP_ALLOW_ANY_SITE !== "1") {
         return { text: "This server only audits the demo site (set AXOLOTL_MCP_ALLOW_ANY_SITE=1 to allow others).", structured: { siteUrl }, isError: true };
       }
-      const run = startRun({ siteUrl, chaos: args.chaos === true ? { enabled: true, rate: 0.2, weights: { error: 3, timeout: 1, stall: 1, auth_block: 1, corrupt: 3 } } : undefined });
+      const budgetCents = Math.round(Math.min(10000, Math.max(0, num(args.budget_cents) ?? 0)));
+      const run = startRun({ siteUrl, budgetCents, chaos: args.chaos === true ? { enabled: true, rate: 0.2, weights: { error: 3, timeout: 1, stall: 1, auth_block: 1, corrupt: 3 } } : undefined });
       return {
         text: `Started run ${run.id} on ${siteUrl}${args.chaos === true ? " with chaos on" : ""}. Watch it live at ${baseUrl()}/ . Check progress with axolotl_get_run.`,
         structured: { runId: run.id, dashboard: `${baseUrl()}/`, siteUrl, simulatedAgents: run.config.client === "mock" },
