@@ -3,14 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import { useAxolotl } from "@/components/store";
 import { Button, Segmented, Toggle } from "@/components/ui/primitives";
 import { fmtCents } from "@/components/ui/tokens";
+import { SITE_CHECKS, parseRequest } from "@/lib/request";
 import type { AgentSource } from "@/lib/types";
 
 export function RunToolbar() {
   const { state, actions } = useAxolotl();
   const boot = state.boot;
-  const [siteDraft, setSiteUrl] = useState<string | null>(null);
+  const [request, setRequest] = useState("");
   const [clientDraft, setClient] = useState<AgentSource | null>(null);
-  const siteUrl = siteDraft ?? boot?.defaults.siteUrl ?? "";
+  const parsed = parseRequest(request, boot?.defaults.siteUrl ?? "");
   const client = clientDraft ?? boot?.defaults.client ?? "mock";
   const [judge, setJudge] = useState<"mock" | "live">("mock");
   const [simulatedBackups, setSimulatedBackups] = useState(true);
@@ -48,22 +49,39 @@ export function RunToolbar() {
   const llmLeft = boot ? Math.max(0, boot.llm.limits.perDay - boot.llm.dayCalls) : 0;
 
   const start = async () => {
+    if (parsed.kind !== "audit") return;
     setStarting(true);
     // Chaos comes from the server's current setting (the toggle updates it immediately).
-    await actions.startRun({ siteUrl, client, llmMode: judge, simulatedBackups, budgetCents });
+    await actions.startRun({
+      siteUrl: parsed.siteUrl,
+      request: request.trim(),
+      ...(parsed.maxPages ? { maxPages: parsed.maxPages } : {}),
+      client,
+      llmMode: judge,
+      simulatedBackups,
+      budgetCents,
+    });
     setStarting(false);
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-line bg-panel px-4 py-3">
-      <input
-        value={siteUrl}
-        onChange={(e) => setSiteUrl(e.target.value)}
-        spellCheck={false}
-        aria-label="Website to audit"
-        placeholder="https://your-site.com"
-        className="h-9 min-w-[220px] flex-1 rounded-[8px] border border-line-strong bg-panel px-3 text-[14.5px] text-ink outline-none focus:border-[var(--focus)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--focus)_15%,transparent)]"
-      />
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-panel px-4 py-3">
+      <form
+        className="basis-full lg:basis-0 lg:min-w-[320px] lg:flex-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!running && !starting) void start();
+        }}
+      >
+        <input
+          value={request}
+          onChange={(e) => setRequest(e.target.value)}
+          aria-label="What should Axolotl do?"
+          aria-describedby="request-plan"
+          placeholder="What should Axolotl do? e.g. Do a full accessibility audit of Tidepool Labs"
+          className="h-10 w-full rounded-[8px] border border-line-strong bg-panel px-3 text-[15px] text-ink outline-none placeholder:text-muted focus:border-[var(--focus)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--focus)_15%,transparent)]"
+        />
+      </form>
       <SourceBadge client={run?.config.client ?? client} simulatedBackups={run ? run.config.simulatedBackups : simulatedBackups} />
       {chaos && (
         <Toggle
@@ -199,13 +217,41 @@ export function RunToolbar() {
             {run?.status === "partial" || run?.status === "failed" ? "Retry failed steps" : "Resume from checkpoint"}
           </Button>
         )}
-        <Button tone="primary" onClick={start} disabled={starting || running || !siteUrl}>
+        <Button tone="primary" onClick={start} disabled={starting || running || parsed.kind !== "audit"}>
           {running ? "Running…" : "Start run"}
         </Button>
       </div>
+      {request.trim() && <RequestPlan parsed={parsed} />}
     </div>
   );
 }
+
+/** What Axolotl will run for the typed request, before it runs. */
+function RequestPlan({ parsed }: { parsed: ReturnType<typeof parseRequest> }) {
+  if (parsed.kind !== "audit") {
+    return (
+      <p id="request-plan" className="basis-full text-[13.5px] leading-snug text-ink-2">
+        {parsed.message}
+      </p>
+    );
+  }
+  const focus = parsed.focus.length === 1 ? ` Focus: ${FOCUS_NAME[parsed.focus[0]]}; the other checks run too.` : "";
+  return (
+    <p id="request-plan" className="basis-full text-[13.5px] leading-snug text-ink-2">
+      <span className="font-medium text-ink">Website audit of {parsed.siteLabel}.</span> Crawl up to {parsed.maxPages ?? 5} pages, then check{" "}
+      {SITE_CHECKS}, verify every answer, and draft fixes.{focus}
+    </p>
+  );
+}
+
+const FOCUS_NAME: Record<string, string> = {
+  accessibility: "accessibility",
+  performance: "performance",
+  seo: "SEO",
+  security: "security headers",
+  links: "broken links",
+  crawl: "pages",
+};
 
 /** Always on screen: which kind of agents this run uses. Simulated runs must never pass as real. */
 function SourceBadge({ client, simulatedBackups }: { client: AgentSource; simulatedBackups: boolean }) {

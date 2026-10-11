@@ -1,4 +1,5 @@
 // Process-wide registry of live runs. Route handlers call into this; engines publish to the bus.
+import { MAX_REQUEST_CHARS } from "@/lib/request";
 import { DEFAULTS } from "@/config/workflow";
 import { demoSiteUrl, env } from "@/lib/env";
 import { getDarwinClient } from "@/lib/engine/clients";
@@ -70,8 +71,10 @@ export function sanitizeConfig(input: Partial<RunConfig> | null | undefined): Ru
   }
   const seed = Number(i.seed);
   const baseline = i.baseline === true;
+  const request = typeof i.request === "string" ? i.request.trim().slice(0, MAX_REQUEST_CHARS) : "";
   return {
     siteUrl,
+    ...(request ? { request } : {}),
     maxPages: Math.round(clamp(num(i.maxPages, base.maxPages), 1, 10)),
     client: i.client === "darwin" ? "darwin" : "mock",
     simulatedBackups: i.simulatedBackups !== false,

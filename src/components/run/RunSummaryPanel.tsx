@@ -65,6 +65,7 @@ export function RunSummaryPanel() {
           />
           <span className="text-[20px] font-semibold tracking-[-0.015em] text-ink">{STATUS_TEXT[run.status] ?? run.status}</span>
         </div>
+        {run.config.request && <p className="mt-2 text-[14.5px] leading-snug text-ink-2">&ldquo;{run.config.request}&rdquo;</p>}
         <div className="mt-1 text-[13.5px] text-muted">
           {done === nodes.length && nodes.length > 0 ? `All ${nodes.length} steps done` : `${done} of ${nodes.length} steps done`} · {siteName(run.config.siteUrl)}
           {simulated && " · simulated agents"}

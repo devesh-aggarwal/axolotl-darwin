@@ -418,6 +418,8 @@ export interface ChaosConfig {
 
 export interface RunConfig {
   siteUrl: string;
+  /** What the person typed to start the run ("Do a full accessibility audit of Tidepool Labs"), when they typed one. */
+  request?: string;
   maxPages: number;
   client: AgentSource;
   /**
