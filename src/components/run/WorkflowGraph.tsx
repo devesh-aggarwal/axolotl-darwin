@@ -74,7 +74,7 @@ function Graph({ dir, size, coverRight }: { dir: Direction; size: Size; coverRig
   const measured = useNodesInitialized();
   const list = useMemo(() => Object.values(state.nodes), [state.nodes]);
   const positions = useMemo(() => layout(list, dir), [list, dir]);
-  const showSource = state.run?.config.client === "darwin";
+  const showSource = state.run?.config.client === "darwin" || state.run?.config.realAgents === true;
 
   const computed: CardNode[] = useMemo(
     () =>

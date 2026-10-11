@@ -506,7 +506,7 @@ async function main(): Promise<void> {
   const seoTries = routed.attempts.filter((x) => x.nodeId.endsWith(":seo"));
   expect("every attempt says why its agent was picked", routed.attempts.every((x) => Boolean(x.routeReason)), routed.attempts.find((x) => !x.routeReason)?.nodeId ?? "");
   expect("first try: the most reliable free agent Darwin found", /Most reliable free agent found/.test(seoTries[0]?.routeReason ?? ""), seoTries[0]?.routeReason);
-  expect("next try after a real agent is labelled simulated", /Simulated agent/.test(seoTries[1]?.routeReason ?? ""), seoTries[1]?.routeReason);
+  expect("next try after a real agent is labelled a backup", /Backup, used only after every real one/.test(seoTries[1]?.routeReason ?? ""), seoTries[1]?.routeReason);
   expect("next agent is told what the failed agent did wrong", /taking over this task/.test(seoTries[1]?.instruction ?? "") && /SEO Notes/.test(seoTries[1]?.instruction ?? ""), (seoTries[1]?.instruction ?? "").slice(-300));
   expect("first try gets no handoff", !/taking over/.test(seoTries[0]?.instruction ?? ""));
   expect("handoff carries no secrets", !/sk-[A-Za-z0-9]{10}/.test(seoTries[1]?.instruction ?? ""));

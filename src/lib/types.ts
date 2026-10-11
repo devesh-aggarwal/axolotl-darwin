@@ -427,6 +427,8 @@ export interface ChaosConfig {
 
 export interface RunConfig {
   siteUrl: string;
+  /** Offer known real agents (src/lib/darwin/providerEndpoints.ts) first on every step that has one, in any mode. */
+  realAgents?: boolean;
   /** What the person typed to start the run ("Do a full accessibility audit of Tidepool Labs"), when they typed one. */
   request?: string;
   maxPages: number;

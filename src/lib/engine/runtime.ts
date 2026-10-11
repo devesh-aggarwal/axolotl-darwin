@@ -75,6 +75,7 @@ export function sanitizeConfig(input: Partial<RunConfig> | null | undefined): Ru
   return {
     siteUrl,
     ...(request ? { request } : {}),
+    ...(i.realAgents === true ? { realAgents: true } : {}),
     maxPages: Math.round(clamp(num(i.maxPages, base.maxPages), 1, 10)),
     client: i.client === "darwin" ? "darwin" : "mock",
     simulatedBackups: i.simulatedBackups !== false,

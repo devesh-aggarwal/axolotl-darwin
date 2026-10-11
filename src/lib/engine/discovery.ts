@@ -8,6 +8,7 @@
 import { productMode } from "@/config/mode";
 import type { NodeTemplate } from "@/config/workflow";
 import { YOUR_AGENTS } from "@/lib/darwin/mockCatalog";
+import { pinnedAgents } from "@/lib/darwin/providerEndpoints";
 import type { SearchResult } from "@/lib/darwin/types";
 import { actConfigured, getDarwinClient } from "@/lib/engine/clients";
 import { env } from "@/lib/env";
@@ -63,6 +64,8 @@ export interface DiscoverOptions {
   stats: Map<string, AgentStats>;
   /** Read and write trust history (listings, incidents, trials). Off for the time-lapse and baseline. */
   useHistory: boolean;
+  /** Offer the known real agents for this step first (pinnedAgents), even when Darwin's search misses them. */
+  pinReal?: boolean;
   /** Tests inject a search; defaults to the Darwin client for each source. */
   search?: SearchFn;
 }
@@ -94,6 +97,18 @@ export async function discover(o: DiscoverOptions): Promise<Discovery> {
   // A Darwin run searches Darwin; simulated agents are a last resort when allowed.
   const sources: AgentSource[] = o.client === "darwin" ? ["darwin", ...(o.simulatedBackups ? (["mock"] as const) : [])] : ["mock"];
   const seen = new Set(out.vetted.map((v) => v.agent.agentId));
+  // Known real agents first. Built-in agents then count as backups, tried only after the real ones.
+  let real = 0;
+  for (const c of o.pinReal ? pinnedAgents(capability) : []) {
+    seen.add(c.agentId);
+    const v = vet(c, "darwin", o);
+    if ("skip" in v) out.skipped.push({ agent: refOf(c), reason: v.skip });
+    else {
+      out.vetted.push({ ...v, tier: v.tier });
+      real++;
+    }
+  }
+  if (real) out.searched.push("Known real agents");
   for (const source of sources) {
     const label = source === "darwin" ? "Darwin Search" : "Simulated catalog";
     let result: SearchResult;
@@ -110,7 +125,7 @@ export async function discover(o: DiscoverOptions): Promise<Discovery> {
       seen.add(c.agentId);
       const v = vet(c, source, o);
       if ("skip" in v) out.skipped.push({ agent: refOf(c), reason: v.skip });
-      else out.vetted.push({ ...v, tier: source === "mock" && o.client === "darwin" ? "simulated" : v.tier });
+      else out.vetted.push({ ...v, tier: source === "mock" && (o.client === "darwin" || real > 0) ? "simulated" : v.tier });
     }
   }
   return out;
@@ -246,7 +261,7 @@ function reasonFor(v: VettedAgent, explored: boolean, freeSeen: { n: number }, r
     case "paid":
       return `Paid agent${v.agent.priceCents !== undefined ? ` (${fmtCents(v.agent.priceCents)} per call)` : ""}, tried only after every free one (${record})`;
     case "simulated":
-      return `Simulated agent, used only after every real one (${record})`;
+      return `Backup, used only after every real one (${record})`;
   }
 }
 

@@ -3,7 +3,7 @@
 // Darwin's own route check expired (threadUnavailableReason ROUTE_VERIFICATION_EXPIRED). The address is
 // the provider's public MCP server from its Darwin v2 capability record. Darwin hasn't re-verified it,
 // so the direct client connects and lists tools before every call, and the trust check says so.
-import type { AgentEndpoint } from "@/lib/types";
+import type { AgentCandidate, AgentEndpoint, Capability } from "@/lib/types";
 
 // Lazynext Accessibility Checker (checker.lazynext.com). Darwin lists its scan_html and scan_url tools as
 // separate capabilities and returns either one for an accessibility search. Both run scan_html: it audits
@@ -26,6 +26,34 @@ const KNOWN: Record<string, ProviderListing> = {
   cmuzfoebm00me06pi2c361syz: LAZYNEXT, // scan_html
   cmuzfolno00tc06pijb65ki0z: LAZYNEXT, // scan_url
 };
+
+/**
+ * Real agents offered on every run that asks for them (RunConfig.realAgents), whether or not Darwin's
+ * search returns them that time: Darwin's results vary between identical searches.
+ */
+export function pinnedAgents(capability: Capability): AgentCandidate[] {
+  if (capability !== "accessibility") return [];
+  return [
+    {
+      agentId: "cmuzfnke9004106msw00dinmv",
+      capabilityId: "cmuzfoebm00me06pi2c361syz",
+      name: LAZYNEXT.name,
+      provider: LAZYNEXT.provider,
+      source: "darwin",
+      capability,
+      description: "Audit pasted HTML markup for WCAG violations (static rules, no render, no quota).",
+      readiness: "unavailable",
+      canStartThread: false,
+      reasons: [],
+      uncertainties: [],
+      requiredSetup: null,
+      rank: 1,
+      argumentSchema: null,
+      endpoint: { ...LAZYNEXT.endpoint },
+      terms: { auth: "not_required", authMechanisms: [], payment: "not_required", runtime: "REMOTE_MCP", secretInputs: [], evidence: "DERIVED_FROM_VERIFIED_RECEIPT" },
+    },
+  ];
+}
 
 /** The provider's own MCP address (and name) for a Darwin capability that doesn't publish one, if known. */
 export function providerListing(capabilityId: string): ProviderListing | undefined {

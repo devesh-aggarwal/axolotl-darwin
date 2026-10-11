@@ -459,6 +459,7 @@ export class RunEngine {
       budgetCents: this.config.budgetCents,
       stats: this.config.recordStats ? getStatsMap() : new Map<string, AgentStats>(),
       useHistory: this.config.recordStats && !this.config.baseline,
+      pinReal: this.config.realAgents === true && !this.config.baseline,
       search: this.opts.search,
     }).then((d) => {
       if (!this.config.baseline) {

@@ -69,6 +69,7 @@ export function RunToolbar() {
       budgetCents,
       chaos: { ...(chaos ?? { rate: 0.15, weights: {} }), enabled: true } as RunConfig["chaos"],
       timeScale: DEMO_PACE,
+      realAgents: true,
     });
     setStarting(false);
   };
