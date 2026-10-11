@@ -9,7 +9,7 @@ import type { NodeView } from "@/lib/types";
 
 const nodeTypes = { card: NodeCard };
 
-const COL = { crawl: 0, a11y: 260, perf: 500, site: 750, merge: 1000, prioritize: 1230, fixplan: 1460 };
+const COL = { crawl: 0, a11y: 280, perf: 540, site: 800, merge: 1060, prioritize: 1310, fixplan: 1560 };
 const ROW = 92;
 const SITE_TEMPLATES = ["seo", "security", "links"];
 
@@ -74,6 +74,7 @@ function Graph({ dir, size, coverRight }: { dir: Direction; size: Size; coverRig
   const measured = useNodesInitialized();
   const list = useMemo(() => Object.values(state.nodes), [state.nodes]);
   const positions = useMemo(() => layout(list, dir), [list, dir]);
+  const showSource = state.run?.config.client === "darwin";
 
   const computed: CardNode[] = useMemo(
     () =>
@@ -95,10 +96,11 @@ function Graph({ dir, size, coverRight }: { dir: Direction; size: Size; coverRig
             swapAt: state.swaps[n.id]?.at,
             selected: state.selectedNodeId === n.id,
             dir,
+            showSource,
           },
         };
       }),
-    [list, positions, state.attempts, state.flashes, state.swaps, state.selectedNodeId, dir],
+    [list, positions, state.attempts, state.flashes, state.swaps, state.selectedNodeId, dir, showSource],
   );
 
   // React Flow writes measurements (size, handle positions) back through onNodesChange.

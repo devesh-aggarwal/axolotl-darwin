@@ -5,7 +5,7 @@ import { stepName } from "@/components/ui/names";
 import { STATE_COLOR, STATE_LABEL } from "@/components/ui/tokens";
 import type { AttemptView, NodeView } from "@/lib/types";
 
-export const CARD_W = 216;
+export const CARD_W = 232;
 export const CARD_H = 74;
 
 export interface CardData extends Record<string, unknown> {
@@ -15,6 +15,8 @@ export interface CardData extends Record<string, unknown> {
   swapAt?: number;
   selected: boolean;
   dir?: "LR" | "TB";
+  /** Darwin runs mix real and simulated agents: say which one is on each card. */
+  showSource?: boolean;
 }
 
 export type CardNode = Node<CardData, "card">;
@@ -30,7 +32,7 @@ function RegrowMark() {
 }
 
 function CardImpl({ data }: NodeProps<CardNode>) {
-  const { node, flashAt, swapAt, selected, dir = "LR" } = data;
+  const { node, flashAt, swapAt, selected, dir = "LR", showSource = false } = data;
   const color = STATE_COLOR[node.state];
   const live = node.state === "running" || node.state === "verifying" || node.state === "queued" || node.state === "swapping";
   // Keyed by the swap time, so each swap replays the one-shot regrow animations.
@@ -39,7 +41,9 @@ function CardImpl({ data }: NodeProps<CardNode>) {
   const dormant = node.placeholder || node.state === "idle" || node.state === "cancelled";
   const title = cardTitle(node);
   const agentName = node.currentAgent?.name ?? (node.placeholder ? "Starts after the crawl" : node.kind === "builtin" ? "Axolotl" : "Not started");
-  const status = node.restored ? "Restored" : recovered ? `Recovered · ${node.swaps} ${node.swaps === 1 ? "swap" : "swaps"}` : STATE_LABEL[node.state];
+  // With a source tag on the card there's no room for the swap count; the inspector has it.
+  const swapCount = showSource ? "" : ` · ${node.swaps} ${node.swaps === 1 ? "swap" : "swaps"}`;
+  const status = node.restored ? "Restored" : recovered ? `Recovered${swapCount}` : STATE_LABEL[node.state];
   // Grey dots stay grey, but their words use readable ink.
   const statusColor = recovered ? "var(--regrow)" : dormant ? "var(--muted)" : color;
 
@@ -85,12 +89,30 @@ function CardImpl({ data }: NodeProps<CardNode>) {
             />
           )}
           <span className="truncate">{status}</span>
+          {showSource && node.currentAgent && node.kind === "agent" && <SourceTag simulated={node.currentAgent.source === "mock"} />}
         </div>
       </div>
       {regrowing && <div key={swapAt} className="pointer-events-none absolute inset-0 rounded-[12px] anim-regrow-glow" />}
       {live && <div className="scanbar" />}
       <Handle type="source" position={dir === "TB" ? Position.Bottom : Position.Right} />
     </div>
+  );
+}
+
+/** Same marks as the run's source badge: solid for a real agent, dashed for a simulated one. */
+function SourceTag({ simulated }: { simulated: boolean }) {
+  return (
+    <span
+      className="ml-auto shrink-0 rounded-full border px-1.5 py-[2px] text-[11.5px] font-medium leading-none"
+      style={{
+        borderColor: simulated ? "var(--line-strong)" : "color-mix(in srgb, var(--s-running) 35%, var(--line))",
+        borderStyle: simulated ? "dashed" : "solid",
+        color: simulated ? "var(--ink-2)" : "var(--s-running)",
+      }}
+      title={simulated ? "A simulated agent ran this step" : "A real agent found on Darwin ran this step"}
+    >
+      {simulated ? "Simulated" : "Real"}
+    </span>
   );
 }
 
