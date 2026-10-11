@@ -4,7 +4,9 @@
 // the person for something a lookup could answer ("what's your street address?"), the hook blocks the
 // stop once and tells the agent to hand the failure to Axolotl's MCP tools first.
 // Reads the hook payload on stdin; prints a decision on stdout. Never fails the host: any error = allow.
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 /** Set AXOLOTL_HOOK_LOG=<file> to record each decision (handy for demos and debugging). */
 function log(entry) {
@@ -13,6 +15,18 @@ function log(entry) {
 
 const GIVE_UP =
   /\b(i can(no|')t|i cannot|can(no|')t (add|do|place|complete|order|book|access|find)|could(n'?t| not) (add|do|place|complete|order|book|access|find)|was(n'?t| not) able to|can only (search|read|view|look)|i'?m (not able|unable)|unable to|not able to|doesn'?t support|does not support|only supports?|isn'?t supported|no (tool|way) to|i (have )?overstated|limitation of|requires? a full address|please (provide|share|tell me)|what('| i)s your (delivery )?address|street (number|name)|zip code)\b/i;
+
+/**
+ * The hook follows the Axolotl MCP server's switch: with `enabled = false` under [mcp_servers.axolotl]
+ * in Codex's config.toml (or AXOLOTL_OFF=1), it stays silent, so a "without Axolotl" run shows no trace of it.
+ */
+function axolotlDisabled() {
+  if (process.env.AXOLOTL_OFF === "1") return true;
+  const file = join(process.env.CODEX_HOME || join(homedir(), ".codex"), "config.toml");
+  if (!existsSync(file)) return false;
+  const section = /^\[mcp_servers\.axolotl\]\s*$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(readFileSync(file, "utf8"));
+  return Boolean(section && /^\s*enabled\s*=\s*false\b/m.test(section[1]));
+}
 
 function lastAssistantText(payload) {
   if (typeof payload.last_assistant_message === "string") return payload.last_assistant_message;
@@ -39,6 +53,9 @@ function lastAssistantText(payload) {
 
 try {
   const payload = JSON.parse(readFileSync(0, "utf8") || "{}");
+  // Codex runs come with a .codex transcript; only those follow Codex's config switch.
+  const fromCodex = String(payload.transcript_path ?? "").includes(`${join(".codex", "")}`) || Boolean(process.env.CODEX_HOME);
+  if ((fromCodex || process.env.AXOLOTL_OFF) && axolotlDisabled()) process.exit(0);
   // Already continued once because of this hook: let it stop, so it can never loop.
   if (payload.stop_hook_active) {
     log({ decision: "allow", why: "already continued once" });

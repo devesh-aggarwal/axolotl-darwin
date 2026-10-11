@@ -48,6 +48,7 @@ Vercel isn't a good fit today: the engine keeps live runs in memory and uses SQL
 `integrations/hooks/axolotl-stop-hook.mjs` is a Stop hook for Claude Code and Codex. When the agent ends a turn by giving up
 ("I can't add items to your cart") or by asking for something a lookup could answer ("what's your street address?"),
 the hook blocks the stop once and tells the agent to call `axolotl_recover`. It never loops (it respects `stop_hook_active`) and never breaks the host.
+In Codex it follows the Axolotl server's switch: with `enabled = false` under `[mcp_servers.axolotl]` the hook stays silent, so a "without Axolotl" run shows no trace of it. `AXOLOTL_OFF=1` does the same anywhere.
 
 Claude Code (`~/.claude/settings.json` or a project's `.claude/settings.json`):
 ```json
