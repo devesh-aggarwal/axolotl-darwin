@@ -9,6 +9,8 @@ export interface HostRoute {
   id: string;
   via: string;
   kind: "plugin_cart" | "plugin_search_then_browser" | "browser_site";
+  /** Why Axolotl chose this route, in one line the host can repeat to the person. */
+  why: string;
   steps: string[];
 }
 
@@ -55,7 +57,9 @@ export function planHostRoutes(item: string, address: Place, toolsIn: HostTool[]
   const text = (t: HostTool) => `${t.name} ${t.description ?? ""}`;
   // A plugin that says it only does groceries can't fetch restaurant food, even if its company can.
   const usable = (t: HostTool) => groceries || !/grocer/i.test(t.description ?? "") || /restaurant|takeout|meal/i.test(t.description ?? "");
-  const browser = canBrowse || toolsIn.some((t) => BROWSER_WORDS.test(text(t)));
+  const browserTool = toolsIn.find((t) => BROWSER_WORDS.test(text(t)))?.name;
+  const browser = canBrowse || Boolean(browserTool);
+  const yourBrowser = browserTool ? `your browser tool (${browserTool})` : "your browser";
   const tools = toolsIn.filter(usable);
   const routes: HostRoute[] = [];
   const addr = address.address;
@@ -69,6 +73,7 @@ export function planHostRoutes(item: string, address: Place, toolsIn: HostTool[]
         id: `${slug(p.name)}-plugin-cart`,
         via: `${p.name} plugin (${cartTool.name})`,
         kind: "plugin_cart",
+        why: `${cartTool.name} can add to the cart directly, so it goes first.`,
         steps: [`Call ${cartTool.name} to add 1 × "${item}" with delivery address "${addr}".`, "Read back the cart it returns."],
       });
     }
@@ -78,11 +83,12 @@ export function planHostRoutes(item: string, address: Place, toolsIn: HostTool[]
     if (search && browser) {
       routes.push({
         id: `${slug(p.name)}-search-browser`,
-        via: `${p.name} plugin search, then your browser`,
+        via: `${p.name} plugin search, then ${yourBrowser}`,
         kind: "plugin_search_then_browser",
+        why: `The ${p.name} plugin (${search.name}) can find the food but has no add-to-cart tool, so Axolotl routes the cart step around it through ${yourBrowser}.`,
         steps: [
           `Call ${search.name} for "${item}" with address "${addr}" (delivery).`,
-          "Open the best matching store's link in your browser. If the page asks for a delivery address, set it to the address above.",
+          `Open the best matching store's link with ${yourBrowser}. If the page asks for a delivery address, set it to the address above.`,
           `Add 1 × the matching item to the cart. Choose free/default options; skip paid extras.`,
           "Open the cart and read what it shows (items, subtotal, delivery address). Do not check out.",
         ],
@@ -94,10 +100,11 @@ export function planHostRoutes(item: string, address: Place, toolsIn: HostTool[]
       if (routes.some((r) => r.id.startsWith(slug(p.name)))) continue;
       routes.push({
         id: `${slug(p.name)}-site`,
-        via: `${p.name} website in your browser`,
+        via: `${p.name} website in ${yourBrowser}`,
         kind: "browser_site",
+        why: `No ${p.name} plugin here, so Axolotl uses the ${p.name} website through ${yourBrowser} as a backup.`,
         steps: [
-          `Open ${p.searchUrl(item)} in your browser and set the delivery address to "${addr}".`,
+          `Open ${p.searchUrl(item)} with ${yourBrowser} and set the delivery address to "${addr}".`,
           `Pick a store that sells "${item}", add 1 to the cart, choosing free/default options.`,
           "Open the cart and read what it shows. Do not check out. If it needs a sign-in you don't have, move to the next route.",
         ],
@@ -141,4 +148,15 @@ export function verifyHostCart(cartText: string, item: string, address: Place, m
   if (maxTotalUsd !== undefined && totalUsd !== undefined && totalUsd > maxTotalUsd) problems.push(`total $${totalUsd.toFixed(2)} is over the $${maxTotalUsd.toFixed(2)} cap`);
 
   return { verdict: problems.length ? "fail" : "pass", problems, found: { item: itemOk, address: addressOk, totalUsd } };
+}
+
+/** One line the host can show the person, so they can see what Axolotl did. */
+export function creditLine(routeId: string, address: Place, fromSavedPlaces: boolean): string {
+  const where = fromSavedPlaces ? `found ${address.address} in your saved places` : `resolved the address to ${address.address}`;
+  const how = routeId.endsWith("-search-browser")
+    ? `routed around the plugin's missing add-to-cart tool by building the cart in the browser`
+    : routeId.endsWith("-site")
+      ? "switched to the delivery site in the browser as a backup"
+      : "picked the plugin that can add to the cart";
+  return `Axolotl ${where}, ${how}, and verified the cart (right item, right address, not checked out).`;
 }

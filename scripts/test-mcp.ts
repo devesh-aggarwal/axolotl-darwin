@@ -180,6 +180,9 @@ async function main() {
     assert.ok(routes.every((r) => !r.steps.join(" ").includes("Call doordash")), "DoorDash grocery plugin not used for a bowl");
     assert.ok(routes.some((r) => r.id === "doordash-site"), "DoorDash website is a later route");
     assert.ok(routes[0].steps.join(" ").includes("1025 Sansome Street"));
+    assert.match(routes[0].why, /no add-to-cart tool, so Axolotl routes the cart step around it/);
+    const named = planHostRoutes("protein bowl", office, [...codexTools, { name: "mcp__cua_repl", description: "browser automation" }], false, false);
+    assert.match(named[0].steps[1], /mcp__cua_repl/, "names the host's browser tool");
   });
   await check("a plugin with a cart tool goes first; no plugins and no browser means no route", () => {
     const routes = planHostRoutes("pizza", office, parseHostTools(["grubhub_add_to_cart: Add items to a Grubhub cart", "uber_eats_search"]), true, false);

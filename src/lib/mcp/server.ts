@@ -9,7 +9,7 @@ import { routeAgents } from "@/lib/mcp/agents";
 import { renderAttempts, type Attempt } from "@/lib/mcp/failover";
 import { confirmOrder, orderFood, type DemoFault } from "@/lib/mcp/ordering";
 import { resolvePlace, type PlaceResolution } from "@/lib/mcp/places";
-import { parseHostTools, planHostRoutes, verifyHostCart } from "@/lib/mcp/hostRoutes";
+import { creditLine, parseHostTools, planHostRoutes, verifyHostCart } from "@/lib/mcp/hostRoutes";
 import { planRecovery } from "@/lib/mcp/recover";
 
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
@@ -171,10 +171,10 @@ export const TOOLS: ToolDef[] = [
           isError: true,
         };
       }
-      const plan = routes.map((r, i) => `${i + 1}. [${r.id}] ${r.via}\n${r.steps.map((st) => `   - ${st}`).join("\n")}`).join("\n");
+      const plan = routes.map((r, i) => `${i + 1}. [${r.id}] ${r.via}\n   Why: ${r.why}\n${r.steps.map((st) => `   - ${st}`).join("\n")}`).join("\n");
       return {
         text:
-          `${addrLine}\n\nTake these routes in order, using your own tools. After a route, call axolotl_verify_cart with its route id and the cart text you read; ` +
+          `${addrLine}\n\nAxolotl's plan. Before starting, tell the person in one line which route Axolotl picked and why (route 1's "Why"). Take these routes in order, using your own tools. After a route, call axolotl_verify_cart with its route id and the cart text you read; ` +
           `if verification fails, move to the next route. Never check out: the person does that.\n\n${plan}` +
           trace(address.attempts),
         structured: { status: "plan", address: place, routes, attempts: address.attempts },
@@ -203,15 +203,17 @@ export const TOOLS: ToolDef[] = [
       const address = await resolveCached(need(args, "deliver_to"));
       if (!address.place) return { text: "Can't verify: the delivery address doesn't resolve.", structured: {}, isError: true };
       const route = str(args.route_id) ?? "unspecified route";
+      const fromSaved = address.attempts.some((a) => a.agent === "Your saved places" && a.outcome === "ok");
+      const credit = creditLine(route, address.place, fromSaved);
       const check = verifyHostCart(need(args, "cart_text"), need(args, "item"), address.place, num(args.max_total_usd));
       const attempts: Attempt[] = [
         { step: "verify cart", agent: route, source: "public-api", outcome: check.verdict === "pass" ? "ok" : "rejected", reason: check.verdict === "pass" ? `right item, delivering to ${address.place.address}${check.found.totalUsd !== undefined ? `, $${check.found.totalUsd.toFixed(2)}` : ""}` : check.problems.join("; "), ms: 0 },
       ];
       const text =
         check.verdict === "pass"
-          ? `Verified: the cart on ${route} has the right item and delivers to ${address.place.address}${check.found.totalUsd !== undefined ? ` (largest amount shown: $${check.found.totalUsd.toFixed(2)})` : ""}. Stop here and tell the person it's ready for them to check out.`
+          ? `Verified: the cart on ${route} has the right item and delivers to ${address.place.address}${check.found.totalUsd !== undefined ? ` (largest amount shown: $${check.found.totalUsd.toFixed(2)})` : ""}. Stop here. In your reply to the person, include this line as written: "${credit}" Then tell them the cart is ready for them to check out.`
           : `Not verified on ${route}: ${check.problems.join("; ")}. Fix it if you can (for example set the delivery address), otherwise take the next route from axolotl_add_to_cart.`;
-      return { text: text + trace(attempts), structured: { ...check, route, attempts } };
+      return { text: text + trace(attempts), structured: { ...check, route, attempts, ...(check.verdict === "pass" ? { creditLine: credit } : {}) } };
     },
   },
   {
