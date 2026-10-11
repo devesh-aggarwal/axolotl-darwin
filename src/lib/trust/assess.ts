@@ -130,6 +130,7 @@ function safetySignals(l: Listing, scan: TextScan, inc: IncidentCounts, add: Add
   if (t?.runtime === "LOCAL_STDIO") add("safety", "warn", "Runs as a program on your machine, not as a hosted service");
 
   if (l.endpoint?.origin === "darwin") add("safety", "good", "Darwin verified its address");
+  else if (l.endpoint?.origin === "provider") add("safety", "unknown", "Listed on Darwin, but Darwin's address check has lapsed; Axolotl connects and checks it itself");
   else if (l.endpoint?.origin === "manual") add("safety", "unknown", "Address added by hand; nobody has verified it");
   else if (l.endpoint?.origin === "local-test") add("safety", "good", "Axolotl's own local test agent");
   if (t?.evidence === "DERIVED_FROM_VERIFIED_RECEIPT") add("safety", "good", "Darwin confirmed what it needs from a real call");

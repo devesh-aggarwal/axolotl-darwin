@@ -3,6 +3,7 @@
 import { AGENT_TEMPLATES } from "@/config/workflow";
 import type { AgentCandidate, AgentEndpoint, Capability, DeclaredState, ListingTerms } from "@/lib/types";
 import type { SearchResult, TaskPoll } from "@/lib/darwin/types";
+import { providerListing } from "@/lib/darwin/providerEndpoints";
 
 export type Rec = Record<string, unknown>;
 
@@ -143,12 +144,13 @@ export function mapAgent(agent: Rec, ctx: AgentMappingContext): AgentCandidate |
   const capabilityId = nonEmpty(agent.capabilityId);
   if (!agentId || !capabilityId) return null;
   const rank = typeof agent.rank === "number" && Number.isFinite(agent.rank) ? agent.rank : ctx.index + 1;
+  const known = providerListing(capabilityId);
   return {
     agentId,
     capabilityId,
-    name: nonEmpty(agent.name) ?? agentId,
+    name: known?.name ?? nonEmpty(agent.name) ?? agentId,
     source: "darwin",
-    provider: deriveProvider(agent),
+    provider: known?.provider ?? deriveProvider(agent),
     capability: ctx.capability,
     description: asString(agent.description) ?? "",
     readiness: nonEmpty(agent.readiness) ?? "unavailable",
@@ -163,7 +165,7 @@ export function mapAgent(agent: Rec, ctx: AgentMappingContext): AgentCandidate |
     // The spec only reports whether an input schema exists (providerContract.inputSchema
     // is a status enum); the schema itself is never returned.
     argumentSchema: null,
-    endpoint: verifiedMcpEndpoint(agent),
+    endpoint: verifiedMcpEndpoint(agent) ?? known?.endpoint,
     terms: listingTerms(agent),
   };
 }

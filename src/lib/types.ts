@@ -116,8 +116,12 @@ export interface AgentEndpoint {
   url: string;
   /** Tool to call; picked by capability from tools/list when absent. */
   toolName?: string;
-  /** darwin: published and verified by Darwin Search; manual: given by address (YOUR_AGENT_MCP_URL); local-test: Axolotl's own test agents. */
-  origin: "darwin" | "manual" | "local-test";
+  /**
+   * darwin: published and verified by Darwin Search; provider: listed on Darwin, address from the provider's
+   * record because Darwin doesn't publish it (src/lib/darwin/providerEndpoints.ts); manual: given by address
+   * (YOUR_AGENT_MCP_URL); local-test: Axolotl's own test agents.
+   */
+  origin: "darwin" | "provider" | "manual" | "local-test";
 }
 
 export interface AgentRef {

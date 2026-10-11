@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 import dns from "node:dns";
 import net from "node:net";
 import { env } from "@/lib/env";
+import { fetchPage } from "@/lib/audit/fetcher";
 import { AGENT_TEMPLATES, getTemplate } from "@/config/workflow";
 import { applyMapping, buildInstruction, heuristicMapping } from "@/lib/llm/adapter";
 import type { AgentEndpoint, AgentRef, Capability, RoutedAgent } from "@/lib/types";
@@ -20,6 +21,27 @@ import {
 } from "@/lib/darwin/types";
 
 const PROTOCOL_VERSION = "2025-06-18";
+/** Tool inputs that take a page's markup rather than its address. */
+const HTML_INPUT = /^(html|markup|html_source|page_html|source_html)$/i;
+/** Largest page sent as markup; checkers cap their input (Lazynext takes 512 KB). */
+const MAX_HTML_BYTES = 500 * 1024;
+
+/**
+ * Some checkers audit markup instead of fetching a URL (no quota, and they work on a site that isn't
+ * public yet). Axolotl fetches the page itself and passes the HTML in place of whatever was mapped there.
+ */
+async function withPageHtml(tool: McpTool, args: Record<string, unknown>, params: StartTaskParams): Promise<Record<string, unknown>> {
+  const props = (tool.inputSchema as { properties?: Record<string, unknown> } | null)?.properties ?? {};
+  const field = Object.keys(props).find((k) => HTML_INPUT.test(k));
+  if (!field) return args;
+  const input = params.context.input;
+  const pageUrl = "pageUrl" in input ? input.pageUrl : input.siteUrl;
+  const page = await fetchPage(pageUrl);
+  if (!page.html) throw new McpError("PAGE_UNREADABLE", `Couldn't read ${pageUrl} to send its HTML (${page.error ?? `HTTP ${page.status}`}).`);
+  const html = page.html.length > MAX_HTML_BYTES ? page.html.slice(0, MAX_HTML_BYTES) : page.html;
+  const rest = Object.fromEntries(Object.entries(args).filter(([k]) => k in props && !HTML_INPUT.test(k)));
+  return { ...rest, [field]: html };
+}
 const REQUEST_TIMEOUT_MS = 20_000;
 const CALL_TIMEOUT_MS = 230_000;
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
@@ -243,7 +265,13 @@ export class McpDirectClient implements DarwinClient {
       throw err;
     }
 
-    const args = params.arguments && Object.keys(params.arguments).length ? params.arguments : this.fallbackArguments(tool, params);
+    let args = params.arguments && Object.keys(params.arguments).length ? params.arguments : this.fallbackArguments(tool, params);
+    try {
+      args = await withPageHtml(tool, args, params);
+    } catch (err) {
+      void this.closeSession(session);
+      throw err;
+    }
     const taskId = `mcp_${crypto.createHash("sha256").update(params.idempotencyKey).digest("hex").slice(0, 16)}`;
     const job: Job = { session, controller: new AbortController(), progress: 0, startedAt: this.now() };
     this.remember(taskId, job);

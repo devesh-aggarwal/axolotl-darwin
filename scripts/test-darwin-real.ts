@@ -5,7 +5,8 @@ import path from "node:path";
 import { AGENT_TEMPLATES } from "@/config/workflow";
 import { TransportError, type StartTaskParams, type TaskHandle, type TaskPoll } from "@/lib/darwin/types";
 import { DarwinApiError, RealDarwinClient } from "@/lib/darwin/real";
-import { extractJson } from "@/lib/darwin/normalize";
+import { extractJson, mapAgent } from "@/lib/darwin/normalize";
+import { McpDirectClient } from "@/lib/darwin/mcp";
 import type { AgentRef } from "@/lib/types";
 
 // Any accidental real request fails loudly.
@@ -564,8 +565,70 @@ async function testExtractJson(): Promise<void> {
   });
 }
 
+// ---------- listings whose address Darwin doesn't publish ----------
+
+async function testProviderListings(): Promise<void> {
+  const record = (capabilityId: string, name: string) => ({
+    agentId: "cmuzfnke9004106msw00dinmv",
+    capabilityId,
+    name,
+    connectionMethods: [],
+    executionRequirements: { providerAuthentication: { state: "NOT_REQUIRED" }, payment: { state: "NOT_REQUIRED" }, runtime: { kind: "REMOTE_MCP" } },
+  });
+  for (const [cap, name] of [["cmuzfolno00tc06pijb65ki0z", "scan_url"], ["cmuzfoebm00me06pi2c361syz", "scan_html"]]) {
+    await check(`Lazynext ${name}: runs directly through scan_html, labelled as the provider's address`, () => {
+      const a = mapAgent(record(cap, name), { capability: "accessibility", index: 0, searchId: "s1" });
+      assert(a, "mapped");
+      assert(a.name === "Lazynext Accessibility Checker", `name ${a.name}`);
+      assert(a.endpoint?.url === "https://checker.lazynext.com/mcp", `url ${a.endpoint?.url}`);
+      assert(a.endpoint?.toolName === "scan_html" && a.endpoint.origin === "provider", JSON.stringify(a.endpoint));
+    });
+  }
+  await check("other listings without connection methods still get no address", () => {
+    const a = mapAgent(record("some-other-capability", "accessibility_audit"), { capability: "accessibility", index: 0, searchId: "s1" });
+    assert(a && !a.endpoint && a.name === "accessibility_audit", JSON.stringify(a?.endpoint));
+  });
+
+  await check("a tool that takes markup gets the page's HTML, not its URL", async () => {
+    const page = "http://localhost:3000/demo-site/about.html";
+    const html = "<html><body><img src=team.png></body></html>";
+    const sent: Record<string, unknown>[] = [];
+    const guard = globalThis.fetch;
+    globalThis.fetch = (async (url: string | URL) => {
+      if (String(url) !== page) throw new Error(`unexpected fetch ${url}`);
+      return new Response(html, { headers: { "content-type": "text/html" } });
+    }) as typeof fetch;
+    try {
+      const mcp = new McpDirectClient({
+        lookup: async () => ["93.184.216.34"],
+        fetchImpl: (async (_url: string | URL, init?: RequestInit) => {
+          const msg = JSON.parse(String(init?.body)) as { id?: number; method: string; params?: { arguments?: Record<string, unknown> } };
+          const reply = (result: unknown) => new Response(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result }), { headers: { "content-type": "application/json" } });
+          if (msg.method === "initialize") return reply({ protocolVersion: "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "checker" } });
+          if (msg.method === "tools/list")
+            return reply({ tools: [{ name: "scan_html", description: "Audit pasted HTML", inputSchema: { type: "object", properties: { html: { type: "string" } }, required: ["html"] } }] });
+          if (msg.method === "tools/call") {
+            sent.push(msg.params?.arguments ?? {});
+            return reply({ content: [{ type: "text", text: "{}" }], structuredContent: { issues: [] } });
+          }
+          return new Response(null, { status: 202 });
+        }) as typeof fetch,
+      });
+      const agent = { ...AGENT, source: "direct" as const, endpoint: { protocol: "MCP" as const, url: "https://checker.example/mcp", toolName: "scan_html", origin: "provider" as const } };
+      const handle = await mcp.startTask({ ...params(), agent, context: { ...params().context, capability: "accessibility", input: { siteUrl: "http://localhost:3000/demo-site/", pageUrl: page } } });
+      for (let i = 0; i < 50 && !sent.length; i++) await new Promise((r) => setTimeout(r, 5));
+      await mcp.pollTask(handle);
+      assert(sent.length === 1, `calls ${sent.length}`);
+      assert(sent[0].html === html && Object.keys(sent[0]).length === 1, JSON.stringify(sent[0]).slice(0, 200));
+    } finally {
+      globalThis.fetch = guard;
+    }
+  });
+}
+
 async function main(): Promise<void> {
   await testSearchFixtures();
+  await testProviderListings();
   await testSearchDetails();
   await testActConfig();
   await testActFlows();
