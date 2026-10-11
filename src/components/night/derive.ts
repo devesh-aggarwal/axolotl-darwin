@@ -95,10 +95,11 @@ export function usablePercent(s: TimelapseSide): number {
   return s.runs ? Math.round((s.completed / s.runs) * 100) : 0;
 }
 
-/** Big-number color: the without side always reads as the loss, the with side turns green once it is clearly healthy. */
-export function percentColor(side: SideKey, pct: number): string {
-  if (side === "without") return "var(--s-failed)";
-  return pct >= 85 ? "var(--s-passed)" : "var(--ink)";
+/** Big-number color, one rule for both sides so the comparison is fair: green when clearly healthy, red when most runs fail. */
+export function percentColor(_side: SideKey, pct: number): string {
+  if (pct >= 85) return "var(--s-passed)";
+  if (pct < 50) return "var(--s-failed)";
+  return "var(--ink)";
 }
 
 export function fmtCount(n: number): string {

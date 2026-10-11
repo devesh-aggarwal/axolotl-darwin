@@ -7,7 +7,7 @@ import { Inspector } from "@/components/run/Inspector";
 import { RunToolbar } from "@/components/run/RunToolbar";
 import { WorkflowGraph } from "@/components/run/WorkflowGraph";
 import { AxolotlProvider, useAxolotl, type Tab } from "@/components/store";
-import { Empty } from "@/components/ui/primitives";
+import { CloseIcon, Empty } from "@/components/ui/primitives";
 import { Toasts } from "@/components/ui/Toasts";
 import { useCopy } from "@/components/ui/copy";
 
@@ -17,7 +17,7 @@ const FLOW: { id: Tab; label: string; step: number }[] = [
   { id: "report", label: "Report", step: 2 },
 ];
 const PROOF: { id: Tab; label: string }[] = [
-  { id: "night", label: "50 nights" },
+  { id: "night", label: "Overnight" },
   { id: "evolution", label: "Rankings" },
 ];
 
@@ -40,8 +40,12 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     <button
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={`flex items-center whitespace-nowrap rounded-[8px] px-2.5 py-1.5 text-[13.5px] transition-colors lg:px-3 ${
-        active ? "bg-panel-2 font-medium text-ink" : "text-muted hover:text-ink"
+      ref={(el) => {
+        // On phones the nav scrolls sideways; keep the open tab in view.
+        if (active && el) el.scrollIntoView({ block: "nearest", inline: "nearest" });
+      }}
+      className={`flex h-10 shrink-0 items-center whitespace-nowrap rounded-[8px] px-2.5 text-[14.5px] transition-colors lg:px-3 ${
+        active ? "bg-panel-2 font-semibold text-ink" : "text-muted hover:bg-panel-2/60 hover:text-ink"
       }`}
     >
       {children}
@@ -53,17 +57,20 @@ function TopBar() {
   const { state, actions } = useAxolotl();
   const copy = useCopy();
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-line bg-panel px-4 lg:gap-8">
-      <div className="flex items-center gap-2">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-panel px-4 lg:gap-8">
+      <div className="flex shrink-0 items-center gap-2">
         <Mark size={24} />
-        <span className="text-[16px] font-semibold tracking-[-0.01em] text-ink">Axolotl</span>
-        <span className="ml-1 hidden text-[12.5px] text-muted 2xl:inline">{copy.tagline}</span>
+        <span className="text-[18px] font-semibold tracking-[-0.02em] text-ink">Axolotl</span>
+        <span className="ml-1 hidden text-[13.5px] text-muted 2xl:inline">{copy.tagline}</span>
       </div>
-      <nav className="flex items-center gap-0.5" aria-label="Views">
+      <nav
+        className="no-scrollbar -my-2 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto py-2 max-md:pr-6 max-md:[mask-image:linear-gradient(to_right,#000_80%,transparent)]"
+        aria-label="Views"
+      >
         {FLOW.map((t) => (
           <TabButton key={t.id} active={state.tab === t.id} onClick={() => actions.setTab(t.id)}>
             <span
-              className={`mr-1.5 inline-flex h-[18px] w-[18px] items-center justify-center rounded-full text-[11px] font-semibold ${
+              className={`mr-1.5 inline-flex h-[20px] w-[20px] items-center justify-center rounded-full text-[12px] font-semibold tabular ${
                 state.tab === t.id ? "bg-ink text-white" : "bg-panel-2 text-muted"
               }`}
             >
@@ -72,17 +79,21 @@ function TopBar() {
             {t.label}
           </TabButton>
         ))}
-        <span className="mx-2 h-5 w-px bg-line-strong lg:mx-3" aria-hidden />
-        <span className="mr-1 hidden text-[12.5px] text-faint md:inline">Proof</span>
+        <span className="mx-2 h-5 w-px shrink-0 bg-line-strong lg:mx-3" aria-hidden />
+        <span className="mr-1 hidden shrink-0 text-[13px] font-medium text-muted md:inline">Proof</span>
         {PROOF.map((t) => (
           <TabButton key={t.id} active={state.tab === t.id} onClick={() => actions.setTab(t.id)}>
             {t.label}
           </TabButton>
         ))}
       </nav>
-      <div className="ml-auto flex items-center gap-1.5 text-[12.5px] text-muted" title={state.connected ? "Live updates connected" : "Reconnecting…"}>
-        <span className="inline-block h-[7px] w-[7px] rounded-full" style={{ background: state.connected ? "var(--s-passed)" : "var(--s-failed)" }} />
-        <span className="hidden sm:inline">{state.connected ? "Live" : "Offline"}</span>
+      <div
+        className="flex shrink-0 items-center gap-1.5 text-[13.5px]"
+        style={{ color: state.connected ? "var(--muted)" : "var(--s-partial)" }}
+        title={state.connected ? "Live updates connected" : "Live updates paused. Reconnecting…"}
+      >
+        <span className="inline-block h-[8px] w-[8px] rounded-full" style={{ background: state.connected ? "var(--s-passed)" : "var(--s-partial)" }} />
+        <span className="hidden sm:inline">{state.connected ? "Live" : "Paused"}</span>
       </div>
     </header>
   );
@@ -141,7 +152,7 @@ function RunView() {
             {narrow && hasRun && !panelOpen && (
               <button
                 onClick={() => setStatsOpen(true)}
-                className="card absolute right-3 top-3 z-10 px-3 py-1.5 text-[12.5px] font-medium text-ink-2 hover:text-ink"
+                className="card absolute right-3 top-3 z-10 px-3 py-1.5 text-[13.5px] font-medium text-ink-2 hover:text-ink"
               >
                 Run summary
               </button>
@@ -157,8 +168,12 @@ function RunView() {
             }
           >
             {narrow && !state.selectedNodeId && (
-              <button className="absolute right-2 top-1.5 z-10 text-[18px] leading-none text-muted hover:text-ink" onClick={() => setStatsOpen(false)} aria-label="Close">
-                ×
+              <button
+                className="absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-muted hover:bg-panel-2 hover:text-ink"
+                onClick={() => setStatsOpen(false)}
+                aria-label="Close"
+              >
+                <CloseIcon />
               </button>
             )}
             <Inspector />
@@ -186,16 +201,23 @@ function Body() {
   }
 }
 
+/** While the live stream is down, motion that implies "happening now" stops (see .stale in globals.css). */
+function Frame({ children }: { children: React.ReactNode }) {
+  const { state } = useAxolotl();
+  const stale = !state.connected && state.run?.status === "running";
+  return <div className={`relative flex h-screen flex-col overflow-hidden ${stale ? "stale" : ""}`}>{children}</div>;
+}
+
 export function AppShell() {
   return (
     <AxolotlProvider>
-      <div className="relative flex h-screen flex-col overflow-hidden">
+      <Frame>
         <TopBar />
         <main className="flex min-h-0 flex-1 flex-col">
           <Body />
         </main>
         <Toasts />
-      </div>
+      </Frame>
     </AxolotlProvider>
   );
 }

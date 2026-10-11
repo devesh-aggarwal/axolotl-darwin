@@ -9,8 +9,8 @@ import type { NodeView } from "@/lib/types";
 
 const nodeTypes = { card: NodeCard };
 
-const COL = { crawl: 0, a11y: 250, perf: 480, site: 720, merge: 960, prioritize: 1180, fixplan: 1400 };
-const ROW = 84;
+const COL = { crawl: 0, a11y: 260, perf: 500, site: 750, merge: 1000, prioritize: 1230, fixplan: 1460 };
+const ROW = 92;
 const SITE_TEMPLATES = ["seo", "security", "links"];
 
 function indexOf(node: NodeView): number {
@@ -30,7 +30,7 @@ function layout(nodes: NodeView[], dir: Direction): Map<string, { x: number; y: 
     const width = Math.max(pages, SITE_TEMPLATES.length) * colW;
     const center = width / 2 - CARD_W / 2;
     const left = (width - pages * colW) / 2;
-    const Y = { crawl: 0, a11y: 110, perf: 200, site: 320, merge: 440, prioritize: 530, fixplan: 620 };
+    const Y = { crawl: 0, a11y: 120, perf: 220, site: 350, merge: 480, prioritize: 580, fixplan: 680 };
     for (const n of nodes) {
       if (n.templateId === "a11y" || n.templateId === "perf") {
         const y = n.templateId === "a11y" ? Y.a11y : Y.perf;
@@ -155,8 +155,15 @@ function Graph({ dir, size, coverRight }: { dir: Direction; size: Size; coverRig
   useEffect(() => {
     if (!measured || signature === lastSig.current) return;
     lastSig.current = signature;
-    const t = setTimeout(() => void fitView(FIT), 80);
-    return () => clearTimeout(t);
+    // Animated fits run on animation frames, which background tabs pause: snap instead when hidden.
+    // A second pass catches cards that were added in the same tick and measured a moment later.
+    const fit = () => void fitView(document.hidden ? { ...FIT, duration: 0 } : FIT);
+    const t = setTimeout(fit, 80);
+    const again = setTimeout(fit, 450);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(again);
+    };
   }, [signature, measured, fitView]);
 
   // When the inspector floats over the graph (narrow screens), keep the selected step in view.

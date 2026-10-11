@@ -19,7 +19,7 @@ function Count({ n }: { n: number }) {
 
 export function SeverityMark({ severity }: { severity: Severity }) {
   return (
-    <span className="inline-flex items-center gap-2 text-[13px]" style={{ color: SEVERITY_COLOR[severity] }}>
+    <span className="inline-flex items-center gap-2 text-[14px]" style={{ color: SEVERITY_COLOR[severity] }}>
       <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: SEVERITY_COLOR[severity] }} />
       {SEV_LABEL[severity]}
     </span>
@@ -104,7 +104,7 @@ export function IssueList({
       </div>
 
       <div ref={listRef} className="mt-5">
-        <div className="grid grid-cols-[104px_minmax(0,1fr)_minmax(72px,150px)_20px] gap-4 border-b border-line px-3 pb-2 text-[12.5px] text-muted">
+        <div className="grid grid-cols-[104px_minmax(0,1fr)_minmax(72px,150px)_20px] gap-4 border-b border-line px-3 pb-2 text-[13.5px] text-muted">
           <span>Severity</span>
           <span>Problem</span>
           <span>Page</span>
@@ -113,9 +113,9 @@ export function IssueList({
         {shown.map((i) => (
           <IssueRow key={i.id} issue={i} fix={fixById.get(i.id)} open={expandedId === i.id} onToggle={() => onToggle(i.id)} onShowOnPage={onShowOnPage} />
         ))}
-        {!shown.length && <div className="px-3 py-10 text-center text-[13px] text-muted">No problems match these filters.</div>}
+        {!shown.length && <div className="px-3 py-10 text-center text-[14px] text-muted">No problems match these filters.</div>}
       </div>
-      <p className="mt-4 px-3 text-[12.5px] text-muted">
+      <p className="mt-4 px-3 text-[13.5px] text-muted">
         {shown.length === issues.length ? plural(issues.length, "problem") : `Showing ${shown.length} of ${issues.length} problems`}
         {dedupedFrom > issues.length ? `, merged from ${plural(dedupedFrom, "separate report")},` : ","} ranked by severity, then by effort. Fix from the top.
       </p>
@@ -153,8 +153,8 @@ function IssueRow({
         className={`grid cursor-pointer grid-cols-[104px_minmax(0,1fr)_minmax(72px,150px)_20px] items-baseline gap-4 rounded-[8px] px-3 py-3.5 transition-colors ${open ? "" : "hover:bg-panel"}`}
       >
         <SeverityMark severity={i.severity} />
-        <span className="text-[14px] leading-snug text-ink">{cleanText(i.description)}</span>
-        <span className="truncate text-[13px] text-ink-2" title={i.pageUrl}>
+        <span className="text-[15px] leading-snug text-ink">{cleanText(i.description)}</span>
+        <span className="truncate text-[14px] text-ink-2" title={i.pageUrl}>
           {pageLabel(i.pageUrl)}
         </span>
         <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden className={`self-center text-muted transition-transform ${open ? "rotate-180" : ""}`}>
@@ -168,7 +168,7 @@ function IssueRow({
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-4 py-1.5 text-[13px]">
+    <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-4 py-1.5 text-[14px]">
       <dt className="text-muted">{label}</dt>
       <dd className="min-w-0 break-words text-ink-2">{children}</dd>
     </div>
@@ -180,8 +180,8 @@ function IssueDetail({ issue: i, fix, onShowOnPage }: { issue: PrioritizedIssue;
   const codes = [i.rule, ...codesIn(i.description).filter((c) => c !== i.rule)];
   return (
     <div className="anim-rise px-3 pb-6 pl-[132px] pt-1 max-sm:pl-3">
-      <div className="text-[13px] text-muted">How to fix it</div>
-      <p className="mt-1 max-w-[720px] text-[14px] leading-relaxed text-ink">{i.recommendation}</p>
+      <div className="text-[14px] text-muted">How to fix it</div>
+      <p className="mt-1 max-w-[720px] text-[15px] leading-relaxed text-ink">{i.recommendation}</p>
 
       <dl className="mt-5 max-w-[720px]">
         <Detail label="Type">{CATEGORY_LABEL[i.category] ?? i.category}</Detail>
@@ -198,7 +198,7 @@ function IssueDetail({ issue: i, fix, onShowOnPage }: { issue: PrioritizedIssue;
 
       {fix && (
         <div className="mt-5 max-w-[820px]">
-          <div className="mb-2 text-[13px] text-muted">Drafted fix: {fix.title}</div>
+          <div className="mb-2 text-[14px] text-muted">Drafted fix: {fix.title}</div>
           <CodeBlock patch={fix.patch} language={fix.language} />
         </div>
       )}

@@ -36,9 +36,9 @@ export function SidePanel({
     <section className="card @container flex min-w-0 flex-col p-5">
       <div className="flex items-center gap-2.5">
         <span className="h-[3px] w-4 rounded-full" style={{ background: SIDE_COLOR[side] }} aria-hidden />
-        <h2 className="text-[15px] font-semibold text-ink">{COPY[side].title}</h2>
+        <h2 className="text-[16.5px] font-semibold text-ink">{COPY[side].title}</h2>
       </div>
-      <p className="mt-1 text-[13px] leading-snug text-muted">{COPY[side].detail}</p>
+      <p className="mt-1 text-[14px] leading-snug text-muted">{COPY[side].detail}</p>
 
       <div className="mt-5 grid grid-cols-2 items-end gap-x-6 gap-y-5 @min-[480px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="col-span-2 @min-[480px]:col-span-1">
@@ -50,7 +50,7 @@ export function SidePanel({
             <span className="text-[60px]">{has ? pct : "–"}</span>
             <span className="ml-0.5 text-[26px]">%</span>
           </div>
-          <div className="mt-2 text-[13px] text-muted tabular">
+          <div className="mt-2 text-[14px] text-muted tabular">
             {has ? (
               <>
                 <span className="font-medium text-ink-2">
@@ -64,7 +64,7 @@ export function SidePanel({
           </div>
         </div>
         <Stat label="Human interventions" hint="Runs someone has to notice and fix by hand in the morning" value={<Count value={data.humanInterventions} />} />
-        <Stat label="Hours of rework" hint="Each failed run means redoing the audit by hand" value={<span className="tabular">{fmtCount(hours)}</span>} />
+        <Stat label="Hours of rework (est.)" hint="Each failed run means redoing the audit by hand" value={<span className="tabular">{fmtCount(hours)}</span>} />
       </div>
 
       <Note side={side} data={data} />
@@ -89,7 +89,7 @@ function Note({ side, data }: { side: SideKey; data: TimelapseSide }) {
         : "No backup was needed.";
   const color = side === "without" ? (data.silentlyCorrupt ? OUTCOME_FILL.corrupt : undefined) : data.recoveries ? "var(--regrow)" : undefined;
   return (
-    <p className="mt-4 flex items-center gap-2 text-[13px] leading-snug text-ink-2">
+    <p className="mt-4 flex items-center gap-2 text-[14px] leading-snug text-ink-2">
       {color && (
         <span
           className={side === "without" ? "h-[10px] w-[6px] shrink-0 rounded-[2px]" : "h-[3px] w-[10px] shrink-0 rounded-full"}

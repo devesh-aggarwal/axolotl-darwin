@@ -57,7 +57,7 @@ export function NightView() {
             onChange={(e) => setRuns(e.target.value)}
             onBlur={() => setRuns(String(runsN))}
             aria-label="Runs"
-            className="h-9 w-[72px] rounded-[8px] border border-line-strong bg-panel px-3 text-[13.5px] text-ink tabular outline-none focus:border-[var(--focus)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--focus)_15%,transparent)] disabled:opacity-40"
+            className="h-9 w-[72px] rounded-[8px] border border-line-strong bg-panel px-3 text-[14.5px] text-ink tabular outline-none focus:border-[var(--focus)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--focus)_15%,transparent)] disabled:opacity-40"
           />
         </Field>
         <Field label="Failure rate" title="Chance that an agent call errors, stalls or returns bad output">
@@ -72,7 +72,7 @@ export function NightView() {
             aria-label="Failure rate"
             className="w-[100px] accent-[var(--s-failed)] disabled:opacity-40"
           />
-          <span className="w-[34px] text-[13px] text-ink-2 tabular">{Math.round(chaosRate * 100)}%</span>
+          <span className="w-[34px] text-[14px] text-ink-2 tabular">{Math.round(chaosRate * 100)}%</span>
         </Field>
         <Field label="Length" title="How long the whole night takes to play back">
           <Segmented value={length} onChange={setLength} options={LENGTHS.map(({ value, label }) => ({ value, label }))} disabled={running} />
@@ -106,6 +106,7 @@ export function NightView() {
  * percentages, "x of y", strips and chart therefore always describe the same moment of the night.
  */
 function NightBody({ tl }: { tl: TimelapseView }) {
+  const { state } = useAxolotl();
   const running = tl.running;
   const ticks = useMemo(() => sortTicks(tl.ticks), [tl.ticks]);
   const newest = ticks.length ? ticks[ticks.length - 1] : undefined;
@@ -127,12 +128,13 @@ function NightBody({ tl }: { tl: TimelapseView }) {
       <div className="flex shrink-0 flex-wrap items-center gap-x-10 gap-y-3 px-1 pt-5 pb-2">
         <div className="shrink-0">
           <Clock value={cur?.clock ?? "23:00"} running={running} />
-          <div className="mt-1.5 text-[13px] text-muted tabular">{progressLabel(cur?.index ?? 0, total, running)}</div>
+          <div className="mt-1.5 text-[14px] text-muted tabular">{progressLabel(cur?.index ?? 0, total, running)}</div>
         </div>
         <div className="min-w-[280px] max-w-[760px] flex-1">
           <Headline saved={withoutHours - withHours} anyRework={withoutHours + withHours > 0} started={Boolean(cur?.index)} running={running} />
-          <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
-            Each audit runs twice with the same failures injected: once on its own, once with Axolotl.
+          <p className="mt-1.5 max-w-[64ch] text-[14.5px] leading-relaxed text-muted">
+            A simulated night. Each audit runs twice with the same failures injected: once on its own, once with Axolotl. Rework is
+            estimated at {state.boot?.defaults.manualAuditHours ?? 6} hours for every audit that has to be redone by hand.
           </p>
         </div>
       </div>
@@ -143,7 +145,7 @@ function NightBody({ tl }: { tl: TimelapseView }) {
       </div>
 
       <section className="card flex min-h-[240px] flex-1 flex-col px-4 pb-3 pt-4">
-        <h2 className="px-1 text-[13px] font-medium text-ink">
+        <h2 className="px-1 text-[14px] font-medium text-ink">
           Usable reports through the night <span className="font-normal text-muted">out of {fmtCount(total)} runs</span>
         </h2>
         <div className="relative mt-3 min-h-0 flex-1">
@@ -170,9 +172,9 @@ function Headline({ saved, anyRework, started, running }: { saved: number; anyRe
     </span>
   );
   return running ? (
-    <h2 className={cls}>Axolotl has saved {hours} of rework so far</h2>
+    <h2 className={cls}>Axolotl has saved an estimated {hours} of rework so far</h2>
   ) : (
-    <h2 className={cls}>Axolotl saved {hours} of rework tonight</h2>
+    <h2 className={cls}>Axolotl saved an estimated {hours} of rework tonight</h2>
   );
 }
 
@@ -196,7 +198,7 @@ function Clock({ value, running }: { value: string; running: boolean }) {
 function Field({ label, title, children }: { label: string; title?: string; children: ReactNode }) {
   return (
     <div className="flex items-center gap-2.5" title={title}>
-      <span className="text-[12.5px] text-muted">{label}</span>
+      <span className="text-[13.5px] text-muted">{label}</span>
       {children}
     </div>
   );

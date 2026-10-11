@@ -62,10 +62,10 @@ export function ReportView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-8 py-2.5">
-        <span className="text-[13px] text-muted">Report for</span>
+        <span className="text-[14px] text-muted">Report for</span>
         <RunPicker runs={runs} value={runId} onChange={setPicked} />
         {run?.status === "running" && (
-          <span className="flex items-center gap-2 text-[13px] text-muted">
+          <span className="flex items-center gap-2 text-[14px] text-muted">
             <span className="anim-pulse inline-block h-2 w-2 rounded-full bg-running" style={{ ["--state" as string]: "var(--s-running)" }} />
             Still running
           </span>
@@ -150,7 +150,7 @@ function ReportBody({ report, runId, onOpenLive }: { report: RunReport; runId: s
         <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-ink">
           {running ? "The report is still being written" : "This run stopped before the report was written"}
         </h1>
-        <p className="mt-2 max-w-[720px] text-[14px] leading-relaxed text-ink-2">
+        <p className="mt-2 max-w-[720px] text-[15px] leading-relaxed text-ink-2">
           {running
             ? "Problems, drafted fixes and hours saved appear when the audit steps finish. Here is what has happened so far."
             : `The run ended as "${RUN_STATUS_LABEL[report.run.status].toLowerCase()}" before the problems were merged and ranked. Resume it from the Run view to finish the report.`}
@@ -188,7 +188,7 @@ function ReportBody({ report, runId, onOpenLive }: { report: RunReport; runId: s
               role="tab"
               aria-selected={section === t.id}
               onClick={() => pickTab(t.id)}
-              className={`relative shrink-0 whitespace-nowrap pb-3 text-[14px] transition-colors ${section === t.id ? "text-ink" : "text-muted hover:text-ink-2"}`}
+              className={`relative shrink-0 whitespace-nowrap pb-3 text-[15px] transition-colors ${section === t.id ? "text-ink" : "text-muted hover:text-ink-2"}`}
             >
               {t.label}
               {t.count !== undefined && <span className="ml-1.5 tabular text-muted">{t.count}</span>}

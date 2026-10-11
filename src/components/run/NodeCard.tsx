@@ -5,8 +5,8 @@ import { stepName } from "@/components/ui/names";
 import { STATE_COLOR, STATE_LABEL } from "@/components/ui/tokens";
 import type { AttemptView, NodeView } from "@/lib/types";
 
-export const CARD_W = 208;
-export const CARD_H = 68;
+export const CARD_W = 216;
+export const CARD_H = 74;
 
 export interface CardData extends Record<string, unknown> {
   node: NodeView;
@@ -19,6 +19,16 @@ export interface CardData extends Record<string, unknown> {
 
 export type CardNode = Node<CardData, "card">;
 
+/** A small regrown limb: the mark a healed step keeps for the rest of the run. */
+function RegrowMark() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden className="shrink-0">
+      <path d="M3 13c0-5 3-8 8-8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M8.5 2.5 11 5l-2.5 2.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function CardImpl({ data }: NodeProps<CardNode>) {
   const { node, flashAt, swapAt, selected, dir = "LR" } = data;
   const color = STATE_COLOR[node.state];
@@ -26,42 +36,58 @@ function CardImpl({ data }: NodeProps<CardNode>) {
   // Keyed by the swap time, so each swap replays the one-shot regrow animations.
   const regrowing = swapAt !== undefined;
   const recovered = node.state === "passed" && node.swaps > 0;
+  const dormant = node.placeholder || node.state === "idle" || node.state === "cancelled";
   const title = cardTitle(node);
   const agentName = node.currentAgent?.name ?? (node.placeholder ? "Starts after the crawl" : node.kind === "builtin" ? "Axolotl" : "Not started");
-  const status = node.restored ? "Restored" : recovered ? "Recovered" : STATE_LABEL[node.state];
-  const statusColor = recovered ? "var(--regrow)" : color;
+  const status = node.restored ? "Restored" : recovered ? `Recovered · ${node.swaps} ${node.swaps === 1 ? "swap" : "swaps"}` : STATE_LABEL[node.state];
+  // Grey dots stay grey, but their words use readable ink.
+  const statusColor = recovered ? "var(--regrow)" : dormant ? "var(--muted)" : color;
 
   return (
     <div
       key={flashAt ?? "steady"}
-      className={`relative overflow-hidden rounded-[10px] border bg-panel ${flashAt ? "anim-flash" : ""}`}
+      className={`relative overflow-hidden rounded-[12px] border ${flashAt ? "anim-flash" : ""}`}
       style={
         {
           "--state": color,
           width: CARD_W,
           height: CARD_H,
-          borderColor: selected ? "var(--focus)" : live ? `color-mix(in srgb, ${color} 40%, var(--line))` : "var(--line)",
+          background: recovered ? "var(--regrow-soft)" : "var(--panel)",
+          borderColor: selected
+            ? "var(--focus)"
+            : recovered
+              ? "var(--regrow-line)"
+              : live
+                ? `color-mix(in srgb, ${color} 40%, var(--line))`
+                : "var(--line)",
           borderStyle: node.placeholder ? "dashed" : "solid",
           boxShadow: selected ? "0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent)" : "var(--shadow)",
-          opacity: node.placeholder || node.state === "idle" ? 0.75 : 1,
+          opacity: dormant ? 0.8 : 1,
         } as React.CSSProperties
       }
     >
       <Handle type="target" position={dir === "TB" ? Position.Top : Position.Left} />
-      <div className="flex h-full flex-col justify-center px-3">
-        <div className="truncate text-[13px] font-semibold text-ink">{title}</div>
+      <div className="flex h-full flex-col justify-center px-3.5">
+        <div className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-ink">{title}</div>
         <div
           key={`${node.currentAgent?.agentId ?? "none"}-${swapAt ?? 0}`}
-          className={`truncate text-[12px] text-muted ${regrowing ? "anim-regrow" : ""}`}
+          className={`mt-0.5 truncate text-[13px] leading-tight text-muted ${regrowing ? "anim-regrow" : ""}`}
         >
           {agentName}
         </div>
-        <div className="mt-1 flex items-center gap-1.5 text-[11.5px] font-medium" style={{ color: statusColor }}>
-          <span className={`inline-block h-[7px] w-[7px] rounded-full ${live ? "anim-pulse" : ""}`} style={{ background: statusColor }} />
-          {status}
+        <div className="mt-1.5 flex items-center gap-1.5 text-[12.5px] font-semibold leading-none" style={{ color: statusColor }}>
+          {recovered ? (
+            <RegrowMark />
+          ) : (
+            <span
+              className={`inline-block h-[8px] w-[8px] shrink-0 rounded-full ${live ? "anim-pulse" : ""}`}
+              style={{ background: color }}
+            />
+          )}
+          <span className="truncate">{status}</span>
         </div>
       </div>
-      {regrowing && <div key={swapAt} className="pointer-events-none absolute inset-0 rounded-[10px] anim-regrow-glow" />}
+      {regrowing && <div key={swapAt} className="pointer-events-none absolute inset-0 rounded-[12px] anim-regrow-glow" />}
       {live && <div className="scanbar" />}
       <Handle type="source" position={dir === "TB" ? Position.Bottom : Position.Right} />
     </div>

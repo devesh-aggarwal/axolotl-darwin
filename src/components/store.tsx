@@ -313,7 +313,11 @@ export function AxolotlProvider({ children }: { children: ReactNode }) {
     const connect = () => {
       if (es || document.visibilityState === "hidden") return;
       es = new EventSource("/api/events");
-      es.onopen = () => dispatch({ type: "connected", value: true });
+      es.onopen = () => {
+        dispatch({ type: "connected", value: true });
+        // Events sent while we were away are gone; reload the run so the screen isn't stale.
+        if (runIdRef.current) void loadRun(runIdRef.current).catch(() => undefined);
+      };
       es.onerror = () => {
         dispatch({ type: "connected", value: false });
         disconnect();

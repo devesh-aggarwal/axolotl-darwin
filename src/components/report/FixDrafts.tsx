@@ -71,12 +71,12 @@ export function CodeBlock({ patch, language }: { patch: string; language: string
   return (
     <div className="rounded-[8px] border border-line bg-panel-2">
       <div className="flex items-center justify-between py-1 pl-3.5 pr-1">
-        <span className="text-[12px] text-muted">{langLabel(language)}</span>
+        <span className="text-[13px] text-muted">{langLabel(language)}</span>
         <CopyButton text={patch} />
       </div>
       {/* Long lines scroll sideways; the padding sits inside the scrolled box so nothing is cut at either edge. */}
       <div className="max-h-[360px] overflow-auto rounded-b-[8px]" style={{ scrollbarWidth: "thin" }}>
-        <pre className="w-max min-w-full px-3.5 pb-4 pt-0.5 font-mono text-[12px] leading-[1.7]" style={CODE_STYLE}>
+        <pre className="w-max min-w-full px-3.5 pb-4 pt-0.5 font-mono text-[13px] leading-[1.7]" style={CODE_STYLE}>
           {lines.map((line, idx) => (
             <div key={idx} style={{ color: lineColor(lang, line) }}>
               {line || " "}
@@ -94,7 +94,7 @@ export function FixDrafts({ plan, issues, onOpenIssue }: { plan: FixPlanOutput |
   const byId = new Map(issues.map((i) => [i.id, i]));
   return (
     <div>
-      <p className="max-w-[720px] text-[13px] leading-relaxed text-muted">
+      <p className="max-w-[720px] text-[14px] leading-relaxed text-muted">
         Ready-to-review changes for the {plan.topFixes.length === 1 ? "top problem" : `top ${plan.topFixes.length} problems`}, in the order to fix them. They are
         drafts: check them before merging.
       </p>
@@ -110,11 +110,11 @@ export function FixDrafts({ plan, issues, onOpenIssue }: { plan: FixPlanOutput |
 function FixItem({ fix, rank, issue, onOpenIssue }: { fix: FixDraft; rank: number; issue?: PrioritizedIssue; onOpenIssue: (id: string) => void }) {
   return (
     <li className="flex gap-4">
-      <span className="w-5 shrink-0 pt-[1px] text-right text-[15px] font-semibold tabular text-faint">{rank}</span>
+      <span className="w-5 shrink-0 pt-[1px] text-right text-[16.5px] font-semibold tabular text-faint">{rank}</span>
       <div className="min-w-0 flex-1">
-        <h3 className="text-[15px] font-medium leading-snug text-ink">{fix.title}</h3>
+        <h3 className="text-[16.5px] font-medium leading-snug text-ink">{fix.title}</h3>
         {issue && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] text-muted">
             <span className="inline-flex items-center gap-1.5" style={{ color: SEVERITY_COLOR[issue.severity] }}>
               <span className="inline-block h-[7px] w-[7px] rounded-full" style={{ background: SEVERITY_COLOR[issue.severity] }} />
               {SEV_LABEL[issue.severity]}

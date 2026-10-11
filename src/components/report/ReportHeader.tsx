@@ -1,6 +1,6 @@
 "use client";
 import { useState, type ReactNode } from "react";
-import { CountUp } from "@/components/ui/primitives";
+import { CountUp, StatusGlyph } from "@/components/ui/primitives";
 import { SEVERITY_COLOR, fmtCents } from "@/components/ui/tokens";
 import type { RunReport } from "@/lib/engine/report";
 import { SEVERITIES } from "@/lib/types";
@@ -49,15 +49,29 @@ export function ReportHeader({ report, onShowTimeline }: { report: RunReport; on
     plan ? (plan.source === "llm" ? "Written by GPT" : "Written by Axolotl") : "",
   ].filter(Boolean);
 
+  const stuck = report.partialBranches.length || (run.status === "failed" ? 1 : 0);
+  const finished = Boolean(run.finishedAt);
   return (
     <header>
-      <div className="text-[12.5px] text-muted">{meta.join(" · ")}</div>
-      <h1 className="mt-2 max-w-[860px] text-[22px] font-semibold leading-[1.3] tracking-[-0.01em] text-ink">{headline}</h1>
+      <div className="text-[13.5px] text-muted">{meta.join(" · ")}</div>
+      {finished && (
+        <div
+          className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[14.5px] font-semibold"
+          style={{
+            color: stuck ? "var(--s-failed)" : "var(--s-passed)",
+            background: `color-mix(in srgb, ${stuck ? "var(--s-failed)" : "var(--s-passed)"} 9%, var(--panel))`,
+          }}
+        >
+          <StatusGlyph kind={stuck ? "alert" : "check"} />
+          {stuck ? `${stuck} ${stuck === 1 ? "step needs" : "steps need"} you` : "Nothing needs you"}
+        </div>
+      )}
+      <h1 className="mt-3 max-w-[860px] text-balance text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-ink">{headline}</h1>
       {summary && (
         <div className="mt-2.5 max-w-[760px]">
-          <p className={`text-[14px] leading-relaxed text-ink-2 ${long && !expanded ? "line-clamp-3" : ""}`}>{summary}</p>
+          <p className={`text-[15px] leading-relaxed text-ink-2 ${long && !expanded ? "line-clamp-3" : ""}`}>{summary}</p>
           {long && (
-            <button className="mt-1 text-[12.5px] text-muted underline-offset-2 hover:text-ink hover:underline" onClick={() => setExpanded((v) => !v)}>
+            <button className="mt-1 text-[13.5px] text-muted underline-offset-2 hover:text-ink hover:underline" onClick={() => setExpanded((v) => !v)}>
               {expanded ? "Show less" : "Read more"}
             </button>
           )}
@@ -72,11 +86,11 @@ export function ReportHeader({ report, onShowTimeline }: { report: RunReport; on
 function Stat({ label, value, color, children }: { label: string; value: ReactNode; color?: string; children?: ReactNode }) {
   return (
     <div className="min-w-0">
-      <div className="text-[13px] text-muted">{label}</div>
+      <div className="text-[14px] text-muted">{label}</div>
       <div className="mt-2 text-[36px] font-semibold leading-none tracking-[-0.02em] tabular" style={{ color: color ?? "var(--ink)" }}>
         {value}
       </div>
-      {children && <div className="mt-2.5 text-[12.5px] leading-relaxed text-muted">{children}</div>}
+      {children && <div className="mt-2.5 text-[13.5px] leading-relaxed text-muted">{children}</div>}
     </div>
   );
 }
@@ -138,8 +152,8 @@ function BigNumbers({ report, onShowTimeline }: { report: RunReport; onShowTimel
           </>
         )}
       </Stat>
-      <Stat label="Hours saved" value={<CountUp value={ts.totalHours} decimals={Number.isInteger(ts.totalHours) ? 0 : 1} suffix=" h" />}>
-        {fmtHours(ts.manualAuditHours)} h of manual auditing
+      <Stat label="Hours saved (estimate)" value={<CountUp value={ts.totalHours} decimals={Number.isInteger(ts.totalHours) ? 0 : 1} suffix=" h" />}>
+        Assumes {fmtHours(ts.manualAuditHours)} h for the same audit done by hand
         {ts.rerunsAvoided > 0 ? `, plus ${plural(ts.rerunsAvoided, "rerun")} nobody had to start in the morning` : ""}.
       </Stat>
     </div>
@@ -149,12 +163,17 @@ function BigNumbers({ report, onShowTimeline }: { report: RunReport; onShowTimel
 function PartialNote({ report }: { report: RunReport }) {
   const lost = report.partialBranches;
   return (
-    <div className="mt-6 rounded-[8px] border-l-2 border-partial bg-[color-mix(in_srgb,var(--s-partial)_8%,transparent)] px-4 py-3 text-[13px] leading-relaxed text-ink-2">
+    <div className="mt-6 flex gap-3 rounded-[10px] bg-[color-mix(in_srgb,var(--s-partial)_8%,var(--panel))] px-4 py-3 text-[14.5px] leading-relaxed text-ink-2">
+      <span className="mt-[4px] text-[var(--s-partial)]">
+        <StatusGlyph kind="alert" />
+      </span>
+      <p>
       <span className="font-medium text-ink">
         {lost.length === 1 ? "1 check didn't finish" : `${lost.length} checks didn't finish`}: {listJoin(lost.map((b) => stepLabel(b.label)))}.
       </span>{" "}
       Every agent Axolotl found failed on {lost.length === 1 ? "it" : "them"}, so {lost.length === 1 ? "its" : "their"} findings are missing. Everything else in this report is
       complete.
+      </p>
     </div>
   );
 }

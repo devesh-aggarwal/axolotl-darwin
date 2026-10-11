@@ -50,7 +50,7 @@ export function NightStrip({ side, marks, total, running }: { side: SideKey; mar
           />
         )}
       </div>
-      <div className="relative mt-2 h-[16px] text-[11px] text-muted tabular">
+      <div className="relative mt-2 h-[16px] text-[12px] text-muted tabular">
         {HOUR_MARKS.map((h) => (
           <span
             key={h}
@@ -68,7 +68,7 @@ export function NightStrip({ side, marks, total, running }: { side: SideKey; mar
 
 function Legend({ side }: { side: SideKey }) {
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted">
+    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted">
       <Key color={OUTCOME_FILL.usable}>Usable</Key>
       <Key color={OUTCOME_FILL.failed}>Failed</Key>
       <Key color={OUTCOME_FILL.corrupt}>Finished but wrong</Key>

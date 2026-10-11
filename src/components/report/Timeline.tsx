@@ -53,7 +53,7 @@ export function Timeline({ report }: { report: RunReport }) {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <p className="text-[14px] leading-relaxed text-ink-2">
+        <p className="text-[15px] leading-relaxed text-ink-2">
           {sentence}{" "}
           <span className="text-muted">
             Started {fmtClock(run.createdAt)}
@@ -73,7 +73,7 @@ export function Timeline({ report }: { report: RunReport }) {
       </div>
 
       {entries.length === 0 ? (
-        <div className="py-10 text-center text-[13px] text-muted">Nothing has happened yet.</div>
+        <div className="py-10 text-center text-[14px] text-muted">Nothing has happened yet.</div>
       ) : (
         <ol className="mt-6">
           {entries.map((e, idx) => (
@@ -90,7 +90,7 @@ function Entry({ e, last }: { e: TimelineEntry; last: boolean }) {
   const quiet = e.kind === "passed" || e.kind === "start" || isInterruption(e);
   return (
     <li className="grid grid-cols-[88px_20px_minmax(0,1fr)] gap-x-3">
-      <time className="pt-[1px] text-right text-[12.5px] tabular text-muted">{fmtClock(e.at)}</time>
+      <time className="pt-[1px] text-right text-[13.5px] tabular text-muted">{fmtClock(e.at)}</time>
       <span className="relative flex justify-center">
         {!last && <span className="absolute bottom-0 top-[14px] w-px bg-line" />}
         <span
@@ -99,7 +99,7 @@ function Entry({ e, last }: { e: TimelineEntry; last: boolean }) {
         />
       </span>
       <div className={quiet ? "pb-3" : "pb-6"}>
-        <div className={`leading-snug ${quiet ? "text-[13px] text-muted" : "text-[14px]"}`}>
+        <div className={`leading-snug ${quiet ? "text-[14px] text-muted" : "text-[15px]"}`}>
           {!quiet && (
             <span className="font-medium" style={{ color }}>
               {TIMELINE_LABEL[e.kind]}
@@ -108,7 +108,7 @@ function Entry({ e, last }: { e: TimelineEntry; last: boolean }) {
           {!quiet && <span className="text-muted"> · </span>}
           <span className={quiet ? "" : "text-ink"}>{stepLabel(e.nodeLabel)}</span>
         </div>
-        <div className={`mt-0.5 leading-relaxed ${quiet ? "text-[12.5px] text-faint" : "text-[13px] text-muted"}`}>{detailOf(e)}</div>
+        <div className={`mt-0.5 leading-relaxed ${quiet ? "text-[13.5px] text-faint" : "text-[14px] text-muted"}`}>{detailOf(e)}</div>
       </div>
     </li>
   );

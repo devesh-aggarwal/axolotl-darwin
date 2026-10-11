@@ -41,60 +41,74 @@ export function RunSummaryPanel() {
   const recoveries = nodes.filter((n) => n.kind === "agent" && n.state === "passed" && n.swaps > 0).length;
   const issues = run.stats?.issuesFound;
   const running = run.status === "running";
-  const lostBranch = nodes.some((n) => n.state === "failed" && Boolean(n.error));
-  const humanNeeded = lostBranch || run.status === "failed" ? 1 : 0;
+  const stuck = nodes.filter((n) => n.state === "failed" && Boolean(n.error)).length;
+  const needsYou = stuck || (run.status === "failed" ? 1 : 0);
+  const simulated = run.config.client === "mock";
+  // With the live stream down, "Running" would be a guess. Say what we know and when.
+  const stale = running && !state.connected;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="px-4 pt-4">
+        {stale && (
+          <div className="mb-3 rounded-[8px] bg-panel-2 px-3 py-2 text-[13.5px] leading-snug text-ink-2">
+            Live updates paused. This is the last state we received.{" "}
+            <button className="font-medium text-[var(--focus)] underline-offset-2 hover:underline" onClick={() => void actions.loadRun(run.id)}>
+              Refresh
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <span
-            className={`inline-block h-[9px] w-[9px] rounded-full ${running ? "anim-pulse" : ""}`}
+            className={`inline-block h-[10px] w-[10px] rounded-full ${running && !stale ? "anim-pulse" : ""}`}
             style={{ background: STATUS_COLOR[run.status], ["--state" as string]: STATUS_COLOR[run.status] }}
           />
-          <span className="text-[16px] font-semibold text-ink">{STATUS_TEXT[run.status] ?? run.status}</span>
+          <span className="text-[20px] font-semibold tracking-[-0.015em] text-ink">{STATUS_TEXT[run.status] ?? run.status}</span>
         </div>
-        <div className="mt-1 text-[12.5px] text-muted">
+        <div className="mt-1 text-[13.5px] text-muted">
           {done === nodes.length && nodes.length > 0 ? `All ${nodes.length} steps done` : `${done} of ${nodes.length} steps done`} · {siteName(run.config.siteUrl)}
+          {simulated && " · simulated agents"}
         </div>
-        <div key={run.id} className="mt-5 grid grid-cols-3 gap-3">
-          <Stat label="Problems found" value={issues === undefined ? "—" : <CountUp value={issues} />} />
-          <Stat label={copy.recovered} value={<CountUp value={recoveries} />} color={recoveries ? "var(--regrow)" : undefined} />
+        <div key={run.id} className="mt-5 grid grid-cols-[1.25fr_1fr_1fr] items-end gap-3">
           <Stat
-            label="Human interventions"
-            value={String(humanNeeded)}
-            color={humanNeeded ? "var(--s-failed)" : "var(--s-passed)"}
-            hint={humanNeeded ? "Every agent found for a step failed, so someone has to look at it" : undefined}
+            label={needsYou === 1 ? "Step needs you" : "Steps need you"}
+            value={String(needsYou)}
+            size="lg"
+            color={needsYou ? "var(--s-failed)" : "var(--s-passed)"}
+            hint={needsYou ? "Every agent found for these steps failed, so someone has to look at them" : "Every step finished or recovered on its own"}
           />
+          <Stat label={copy.recovered} value={<CountUp value={recoveries} />} color={recoveries ? "var(--regrow)" : undefined} />
+          <Stat label="Problems found" value={issues === undefined ? "—" : <CountUp value={issues} />} />
         </div>
         {run.stats?.recall !== undefined && (
-          <div className="mt-4 text-[12.5px] text-muted">
-            Caught {Math.round(run.stats.recall * 100)}% of the problems we planted in the demo site.
+          <div className="mt-4 text-[13.5px] text-muted">
+            Caught {Math.round(run.stats.recall * 100)}% of the problems we planted in the demo site
+            {simulated ? ", using simulated agents." : "."}
           </div>
         )}
         {Boolean(run.stats?.spentCents) && (
-          <div className="mt-2 text-[12.5px] text-muted">
+          <div className="mt-2 text-[13.5px] text-muted">
             Spent {fmtCents(run.stats?.spentCents ?? 0)} on paid agents
             {run.config.budgetCents ? ` (limit ${fmtCents(run.config.budgetCents)})` : ""}.
           </div>
         )}
         {!running && (
-          <button className="mt-3 text-[12.5px] font-medium text-[var(--focus)] hover:underline" onClick={() => actions.setTab("report")}>
+          <button className="mt-3 text-[13.5px] font-medium text-[var(--focus)] underline-offset-2 hover:underline" onClick={() => actions.setTab("report")}>
             Open the report →
           </button>
         )}
       </div>
-      <div className="mt-5 border-t border-line px-4 pt-4 text-[13px] font-medium text-ink">Activity</div>
+      <div className="mt-5 border-t border-line px-4 pt-4 text-[14px] font-medium text-ink">Activity</div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2">
         {state.activity.length === 0 ? (
-          <div className="text-[13px] text-muted">{running ? "Nothing has gone wrong yet." : "Nothing to report."}</div>
+          <div className="text-[14px] text-muted">{running ? "Nothing has gone wrong yet." : "Nothing to report."}</div>
         ) : (
           <ul className="flex flex-col gap-2.5">
             {[...state.activity].reverse().map((a) => (
               <li key={a.id} className="anim-rise flex gap-2.5">
                 <span className="mt-[6px] inline-block h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: ACTIVITY_COLOR[a.kind] }} />
                 <button
-                  className="min-w-0 text-left text-[13px] leading-snug text-ink-2 hover:text-ink disabled:cursor-default disabled:hover:text-ink-2"
+                  className="min-w-0 text-left text-[14px] leading-snug text-ink-2 hover:text-ink disabled:cursor-default disabled:hover:text-ink-2"
                   disabled={!a.nodeId || !state.nodes[a.nodeId]}
                   onClick={() => a.nodeId && actions.selectNode(a.nodeId)}
                 >
@@ -105,7 +119,7 @@ export function RunSummaryPanel() {
           </ul>
         )}
       </div>
-      <div className="border-t border-line px-4 py-3 text-[12.5px] text-muted">Click any step in the graph to see what happened.</div>
+      <div className="border-t border-line px-4 py-3 text-[13.5px] text-muted">Click any step in the graph to see what happened.</div>
     </div>
   );
 }

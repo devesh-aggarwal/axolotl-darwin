@@ -105,7 +105,7 @@ export function buildReport(rec: RunRecord): RunReport {
         nodeLabel: label,
         kind: "exhausted",
         agent: "—",
-        detail: "Every pre-approved agent failed; branch marked partial",
+        detail: "Every agent found for this step failed; branch marked partial",
       });
     }
   }

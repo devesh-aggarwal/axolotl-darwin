@@ -47,7 +47,7 @@ export function IssueOverlay({
             value={current.url}
             onChange={(e) => onPage(e.target.value)}
             aria-label="Page"
-            className="h-9 rounded-[8px] border border-line-strong bg-panel px-2.5 text-[13.5px] text-ink outline-none focus:border-[var(--focus)]"
+            className="h-9 rounded-[8px] border border-line-strong bg-panel px-2.5 text-[14.5px] text-ink outline-none focus:border-[var(--focus)]"
           >
             {pages.map((p) => (
               <option key={p.url} value={p.url}>
@@ -56,12 +56,12 @@ export function IssueOverlay({
             ))}
           </select>
         )}
-        <span className="text-[13px] text-muted max-lg:hidden">The real page, with each problem outlined in place.</span>
+        <span className="text-[14px] text-muted max-lg:hidden">The real page, with each problem outlined in place.</span>
         <a
           href={src}
           target="_blank"
           rel="noreferrer"
-          className="ml-auto inline-flex h-8 items-center rounded-[8px] border border-line-strong bg-panel px-3 text-[12.5px] font-medium text-ink transition-colors hover:bg-panel-2"
+          className="ml-auto inline-flex h-8 items-center rounded-[8px] border border-line-strong bg-panel px-3 text-[13.5px] font-medium text-ink transition-colors hover:bg-panel-2"
         >
           Open in a new tab
         </a>
@@ -79,7 +79,7 @@ export function IssueOverlay({
           className="absolute inset-0 h-full w-full border-0"
         />
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-panel text-[13px] text-muted">
+          <div className="absolute inset-0 flex items-center justify-center bg-panel text-[14px] text-muted">
             Loading {current.label}…
             <span className="scanbar" style={{ ["--state" as string]: "var(--s-running)" }} />
           </div>

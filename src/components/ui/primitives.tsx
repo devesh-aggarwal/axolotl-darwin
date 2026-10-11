@@ -19,7 +19,7 @@ export function Button({
   className = "",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { tone?: Tone; size?: "sm" | "md" }) {
-  const sz = size === "sm" ? "h-7 px-2.5 text-[12.5px]" : "h-9 px-3.5 text-[13.5px]";
+  const sz = size === "sm" ? "h-7 px-2.5 text-[13.5px]" : "h-9 px-3.5 text-[14.5px]";
   return (
     <button
       {...props}
@@ -42,9 +42,9 @@ export function Segmented<T extends string>({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      {label && <span className="text-[12.5px] text-muted">{label}</span>}
-      <div className="flex rounded-[8px] bg-panel-2 p-[3px]" role="radiogroup" aria-label={label}>
+    <div className="flex min-w-0 max-w-full items-center gap-2">
+      {label && <span className="shrink-0 text-[13.5px] text-muted">{label}</span>}
+      <div className="no-scrollbar flex min-w-0 max-w-full overflow-x-auto rounded-[8px] bg-panel-2 p-[3px]" role="radiogroup" aria-label={label}>
         {options.map((o) => (
           <button
             key={o.value}
@@ -53,7 +53,7 @@ export function Segmented<T extends string>({
             title={o.title}
             disabled={disabled}
             onClick={() => onChange(o.value)}
-            className={`h-7 rounded-[6px] px-2.5 text-[12.5px] transition-colors disabled:opacity-40 ${
+            className={`h-8 shrink-0 whitespace-nowrap rounded-[6px] px-2.5 text-[13.5px] transition-colors disabled:opacity-40 ${
               value === o.value ? "bg-panel font-medium text-ink shadow-[var(--shadow)]" : "text-muted hover:text-ink-2"
             }`}
           >
@@ -84,7 +84,7 @@ export function Toggle({
       aria-checked={checked}
       aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
-      className="flex items-center gap-2 text-[13px] text-ink-2 hover:text-ink"
+      className="flex min-h-9 items-center gap-2 text-[14px] text-ink-2 hover:text-ink"
     >
       <span className="relative h-[18px] w-[32px] rounded-full transition-colors" style={{ background: checked ? color : "var(--line-strong)" }}>
         <span className="absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-all" style={{ left: checked ? 16 : 2 }} />
@@ -98,7 +98,7 @@ export function Chip({ color, children, title }: { color: string; children: Reac
   return (
     <span
       title={title}
-      className="inline-flex items-center gap-1 rounded-full px-2 py-[1px] text-[11.5px] font-medium"
+      className="inline-flex items-center gap-1 rounded-full px-2 py-[1px] text-[12.5px] font-medium"
       style={{ color, background: `color-mix(in srgb, ${color} 11%, transparent)` }}
     >
       {children}
@@ -109,7 +109,7 @@ export function Chip({ color, children, title }: { color: string; children: Reac
 export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="flex items-center justify-between px-4 pb-2 pt-4">
-      <span className="text-[13px] font-medium text-ink">{children}</span>
+      <span className="text-[14px] font-medium text-ink">{children}</span>
       {right}
     </div>
   );
@@ -127,8 +127,8 @@ export function Meter({ value, max = 1, color = "var(--s-passed)", width = 80 }:
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1.5 px-6 text-center">
-      <div className="text-[14px] font-medium text-ink-2">{title}</div>
-      {children && <div className="max-w-[340px] text-[13px] leading-relaxed text-muted">{children}</div>}
+      <div className="text-[15px] font-medium text-ink-2">{title}</div>
+      {children && <div className="max-w-[340px] text-[14px] leading-relaxed text-muted">{children}</div>}
     </div>
   );
 }
@@ -161,13 +161,27 @@ export function CountUp({ value, decimals = 0, suffix = "" }: { value: number; d
   );
 }
 
-export function Stat({ label, value, color, hint }: { label: string; value: ReactNode; color?: string; hint?: string }) {
+/** A number with its label. "lg" is for the one figure a screen exists to answer. */
+export function Stat({
+  label,
+  value,
+  color,
+  hint,
+  size = "md",
+}: {
+  label: string;
+  value: ReactNode;
+  color?: string;
+  hint?: string;
+  size?: "md" | "lg" | "xl";
+}) {
+  const sz = size === "xl" ? "text-[40px]" : size === "lg" ? "text-[34px]" : "text-[24px]";
   return (
     <div title={hint}>
-      <div className="text-[24px] font-semibold leading-none tracking-[-0.01em]" style={{ color: color ?? "var(--ink)" }}>
+      <div className={`${sz} font-semibold leading-none tracking-[-0.02em] tabular`} style={{ color: color ?? "var(--ink)" }}>
         {value}
       </div>
-      <div className="mt-1.5 text-[12.5px] text-muted">{label}</div>
+      <div className="mt-1.5 text-[13.5px] leading-snug text-muted">{label}</div>
     </div>
   );
 }
@@ -176,10 +190,40 @@ export function Details({ summary = "Details", children }: { summary?: string; c
   const [open, setOpen] = useState(false);
   return (
     <div>
-      <button className="text-[12.5px] text-muted underline-offset-2 hover:text-ink hover:underline" onClick={() => setOpen((v) => !v)}>
+      <button className="text-[13.5px] text-muted underline-offset-2 hover:text-ink hover:underline" onClick={() => setOpen((v) => !v)}>
         {open ? `Hide ${summary.toLowerCase()}` : summary}
       </button>
       {open && <div className="mt-2">{children}</div>}
     </div>
+  );
+}
+
+export function CloseIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden>
+      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export type GlyphKind = "dot" | "check" | "cross" | "alert" | "dash" | "regrow";
+
+/** One drawn icon set for outcomes, so status never relies on font glyphs. */
+export function StatusGlyph({ kind, size = 14 }: { kind: GlyphKind; size?: number }) {
+  const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden className="shrink-0">
+      {kind === "dot" && <circle cx="8" cy="8" r="3.5" fill="currentColor" />}
+      {kind === "check" && <path d="M3.5 8.5l3 3 6-7" {...p} />}
+      {kind === "cross" && <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" {...p} />}
+      {kind === "alert" && <path d="M8 3.5v5.5M8 12.2v.3" {...p} />}
+      {kind === "dash" && <path d="M4.5 8h7" {...p} />}
+      {kind === "regrow" && (
+        <>
+          <path d="M3 13c0-5 3-8 8-8" {...p} />
+          <path d="M8.5 2.5 11 5l-2.5 2.5" {...p} />
+        </>
+      )}
+    </svg>
   );
 }

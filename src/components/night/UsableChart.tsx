@@ -18,7 +18,7 @@ const SERIES: { key: CountKey; name: string; color: string }[] = [
   { key: "with", name: "With Axolotl", color: SIDE_COLOR.with },
 ];
 
-const AXIS_TICK = { fill: "var(--muted)", fontSize: 11 };
+const AXIS_TICK = { fill: "var(--muted)", fontSize: 12 };
 
 /**
  * Usable reports so far, after each finished run. Counts instead of rates: a running rate swings
@@ -44,7 +44,7 @@ export function UsableChart({ ticks, total }: { ticks: TimelapseTick[]; total: n
       return (
         <g key={p.index}>
           <circle cx={p.cx} cy={p.cy} r={4} fill={color} stroke="var(--panel)" strokeWidth={2} />
-          <text x={p.cx + 10} y={p.cy + dy} fontSize={12} fill="var(--ink-2)">
+          <text x={p.cx + 10} y={p.cy + dy} fontSize={13} fill="var(--ink-2)">
             {name}{" "}
             <tspan fill="var(--ink)" fontWeight={600}>
               {fmtCount(mine)}
@@ -97,7 +97,7 @@ function ChartTip({ active, payload }: TooltipContentProps) {
   const p = active ? (payload?.[0]?.payload as Point | undefined) : undefined;
   if (!p) return null;
   return (
-    <div className="card px-3 py-2 text-[12.5px]">
+    <div className="card px-3 py-2 text-[13.5px]">
       <div className="mb-1 text-muted">
         Run {p.index} · {p.clock}
       </div>

@@ -62,14 +62,20 @@ export function RunToolbar() {
         spellCheck={false}
         aria-label="Website to audit"
         placeholder="https://your-site.com"
-        className="h-9 min-w-[220px] flex-1 rounded-[8px] border border-line-strong bg-panel px-3 text-[13.5px] text-ink outline-none focus:border-[var(--focus)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--focus)_15%,transparent)]"
+        className="h-9 min-w-[220px] flex-1 rounded-[8px] border border-line-strong bg-panel px-3 text-[14.5px] text-ink outline-none focus:border-[var(--focus)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--focus)_15%,transparent)]"
       />
+      <SourceBadge client={run?.config.client ?? client} simulatedBackups={run ? run.config.simulatedBackups : simulatedBackups} />
       {chaos && (
         <Toggle
           ariaLabel="Chaos mode"
           checked={chaos.enabled}
           onChange={(v) => actions.setChaos({ enabled: v })}
-          label={<span title="Randomly break agents while the run is going">Chaos</span>}
+          label={
+            <span title="Randomly break agents while the run is going">
+              Chaos
+              {chaos.enabled && <span className="ml-1 tabular text-muted">{Math.round(chaos.rate * 100)}%</span>}
+            </span>
+          }
         />
       )}
       <div className="relative" ref={settingsRef}>
@@ -79,7 +85,7 @@ export function RunToolbar() {
         {settingsOpen && (
           <div className="card anim-rise absolute right-0 top-11 z-30 flex w-[300px] flex-col gap-4 p-4">
             <div>
-              <div className="mb-1.5 text-[12.5px] text-muted">Agents</div>
+              <div className="mb-1.5 text-[13.5px] text-muted">Agents</div>
               <Segmented
                 value={client}
                 onChange={setClient}
@@ -91,7 +97,7 @@ export function RunToolbar() {
               {client === "darwin" && (
                 <>
                   {!boot?.darwin.actConfigured && (
-                    <div className="mt-1.5 text-[12px] leading-snug text-muted">
+                    <div className="mt-1.5 text-[13px] leading-snug text-muted">
                       Darwin Act isn&rsquo;t connected. Agents that publish their own address are called directly; the others are left out.
                     </div>
                   )}
@@ -102,7 +108,7 @@ export function RunToolbar() {
                       onChange={setSimulatedBackups}
                       label={<span title="If every real agent for a step fails, simulated agents finish it">Simulated backups</span>}
                     />
-                    <div className="mt-1 text-[12px] leading-snug text-muted">
+                    <div className="mt-1 text-[13px] leading-snug text-muted">
                       {simulatedBackups ? "Real agents go first. Simulated ones finish a step only if they all fail." : "Real agents only. A step with no working agent is left out."}
                     </div>
                   </div>
@@ -110,12 +116,12 @@ export function RunToolbar() {
               )}
             </div>
             <div>
-              <label htmlFor="run-budget" className="mb-1.5 block text-[12.5px] text-muted">
+              <label htmlFor="run-budget" className="mb-1.5 block text-[13.5px] text-muted">
                 Spending limit per run
               </label>
               <div className="flex items-center gap-2">
                 <div className="relative w-[96px]">
-                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-muted">$</span>
+                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[14px] text-muted">$</span>
                   <input
                     id="run-budget"
                     type="number"
@@ -125,19 +131,19 @@ export function RunToolbar() {
                     step={0.5}
                     value={budgetDollars}
                     onChange={(e) => setBudgetDraft(e.target.value)}
-                    className="tabular h-8 w-full rounded-[8px] border border-line-strong bg-panel pl-6 pr-2 text-[13px] text-ink outline-none focus:border-[var(--focus)]"
+                    className="tabular h-8 w-full rounded-[8px] border border-line-strong bg-panel pl-6 pr-2 text-[14px] text-ink outline-none focus:border-[var(--focus)]"
                   />
                 </div>
-                <span className="text-[12.5px] text-ink-2">{budgetCents ? "per run" : "No paid agents"}</span>
+                <span className="text-[13.5px] text-ink-2">{budgetCents ? "per run" : "No paid agents"}</span>
               </div>
-              <div className="mt-1.5 text-[12px] leading-snug text-muted">
+              <div className="mt-1.5 text-[13px] leading-snug text-muted">
                 {budgetCents
                   ? `Free agents go first. Paid ones are tried only if every free one fails, up to ${fmtCents(budgetCents)} in total.`
                   : "Paid agents are skipped. Set a limit to let Axolotl use them when every free agent fails."}
               </div>
             </div>
             <div>
-              <div className="mb-1.5 text-[12.5px] text-muted">Output review</div>
+              <div className="mb-1.5 text-[13.5px] text-muted">Output review</div>
               <Segmented
                 value={judge}
                 onChange={setJudge}
@@ -147,14 +153,14 @@ export function RunToolbar() {
                 ]}
               />
               {judge === "live" && (
-                <div className="mt-1.5 text-[12px] leading-snug text-muted">
+                <div className="mt-1.5 text-[13px] leading-snug text-muted">
                   Uses gpt-5.6-luna, at most {boot?.defaults.llmCallsPerRun ?? 20} calls per run. {llmLeft} left today.
                 </div>
               )}
             </div>
             {chaos && (
               <div>
-                <div className="mb-1.5 flex justify-between text-[12.5px] text-muted">
+                <div className="mb-1.5 flex justify-between text-[13.5px] text-muted">
                   <span>Chaos intensity</span>
                   <span className="tabular">{Math.round(chaos.rate * 100)}%</span>
                 </div>
@@ -175,9 +181,14 @@ export function RunToolbar() {
       </div>
       <div className="flex items-center gap-2">
         {running && (
-          <Button tone="ghost" onClick={actions.crash} title="Kill the engine mid-run to show resume from checkpoint">
-            Simulate crash
-          </Button>
+          <>
+            <Button tone="ghost" onClick={actions.crash} title="Kill the engine mid-run to show resume from checkpoint">
+              Simulate crash
+            </Button>
+            <Button tone="default" onClick={actions.cancel} title="Stop every step now. Finished steps keep their results.">
+              Stop run
+            </Button>
+          </>
         )}
         {!running && resumable && (
           <Button
@@ -193,5 +204,24 @@ export function RunToolbar() {
         </Button>
       </div>
     </div>
+  );
+}
+
+/** Always on screen: which kind of agents this run uses. Simulated runs must never pass as real. */
+function SourceBadge({ client, simulatedBackups }: { client: AgentSource; simulatedBackups: boolean }) {
+  const simulated = client === "mock";
+  const text = simulated ? "Simulated agents" : simulatedBackups ? "Darwin agents · simulated backups" : "Darwin agents";
+  return (
+    <span
+      className="inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[13px] font-medium"
+      style={{
+        borderColor: simulated ? "var(--line-strong)" : "color-mix(in srgb, var(--s-running) 35%, var(--line))",
+        borderStyle: simulated ? "dashed" : "solid",
+        color: simulated ? "var(--ink-2)" : "var(--s-running)",
+      }}
+      title={simulated ? "Every agent in this run is simulated. Results prove the checks, not agent quality." : undefined}
+    >
+      {text}
+    </span>
   );
 }

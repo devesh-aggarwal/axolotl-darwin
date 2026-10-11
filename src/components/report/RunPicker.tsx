@@ -49,7 +49,7 @@ export function RunPicker({ runs, value, onChange }: { runs: RunSummary[]; value
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex h-8 items-center gap-2 rounded-[8px] border border-line-strong bg-panel px-3 text-[13px] text-ink transition-colors hover:bg-panel-2"
+        className="flex h-8 items-center gap-2 rounded-[8px] border border-line-strong bg-panel px-3 text-[14px] text-ink transition-colors hover:bg-panel-2"
       >
         {current ? (
           <>
@@ -85,16 +85,16 @@ export function RunPicker({ runs, value, onChange }: { runs: RunSummary[]; value
                     <StatusDot run={r} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-baseline justify-between gap-3 text-[13px]">
+                    <span className="flex items-baseline justify-between gap-3 text-[14px]">
                       <span className="tabular text-ink">
                         {fmtWhen(r.createdAt)}
                         {r.config.baseline && <span className="text-muted"> · without Axolotl</span>}
                       </span>
-                      <span className="shrink-0 text-[12px]" style={{ color: RUN_STATUS_COLOR[r.status] }}>
+                      <span className="shrink-0 text-[13px]" style={{ color: RUN_STATUS_COLOR[r.status] }}>
                         {RUN_STATUS_LABEL[r.status]}
                       </span>
                     </span>
-                    <span className="block truncate text-[12px] text-muted">{runLine(r)}</span>
+                    <span className="block truncate text-[13px] text-muted">{runLine(r)}</span>
                   </span>
                 </button>
               );

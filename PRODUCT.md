@@ -14,18 +14,18 @@ Secondary: hackathon judges watching a roughly 3-minute live demo, often on a pr
 
 ## Product Purpose
 
-Axolotl runs multi-step agent workflows on top of Darwin and repairs them on its own. When an agent errors, hangs, asks for a login mid-run, or returns output that looks fine but is wrong, Axolotl swaps in a pre-approved backup agent, verifies the new answer, and keeps going. Branches that didn't fail never stop.
+Axolotl runs multi-step agent workflows on top of Darwin and repairs them on its own. When an agent errors, hangs, asks for a login mid-run, or returns output that looks fine but is wrong, Axolotl finds another agent that can do the job through Darwin, vets it automatically, verifies the new answer, and keeps going. Nobody approves agents ahead of time. Branches that didn't fail never stop.
 
 Success: the operator wakes up to a finished result and an honest account of every failure and recovery along the way.
 
 ## Positioning
 
-Self-healing at the step level, with backups approved up front so a 3am swap never needs a new approval, and every answer verified (format, sanity rules, spot-checks against the live page, optional LLM review) before the workflow moves on.
+Self-healing at the step level: replacement agents are found and vetted at run time, so a 3am failure never waits for a person, and every answer is verified (format, sanity rules, spot-checks against the live page, optional LLM review) before the workflow moves on.
 
 ## Operating Context
 
 - Demo workflow: an overnight pre-launch website audit. Crawl, then per-page accessibility and performance audits plus SEO, security-header and broken-link checks, then merge, prioritise, and a fix plan with drafted fixes.
-- Five screens: Run (live workflow graph, chaos and fault buttons, crash/resume), Setup (pick a primary and two backups per step from Darwin search, approve, health-check), Overnight (a compressed night of runs, with and without Axolotl), Leaderboard (agent reliability per capability, promotions), Report (fix plan, drafted fixes, issue overlay on the real page, failure/recovery timeline).
+- Four screens: Run (live workflow graph, the agents found for each step and the ones left out, chaos and fault buttons, crash/resume, a spending limit for paid agents), Overnight (a compressed night of runs, with and without Axolotl), Leaderboard, labelled "Rankings" in the nav (agent reliability and trust verdict per capability), Report (fix plan, drafted fixes, issue overlay on the real page, failure/recovery timeline).
 - Two modes: `workflow` (Option A) and `your-agent` (Option B: the user's agent first, Darwin agents as backups).
 
 ## Capabilities and Constraints

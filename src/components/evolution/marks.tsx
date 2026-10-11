@@ -6,7 +6,7 @@ import { useTween } from "@/components/evolution/hooks";
 /** Score as a whole percentage (same as the run inspector), easing toward new values. */
 export function TickingScore({ value }: { value: number }) {
   const shown = useTween(value);
-  return <span className="tabular text-[13px] font-medium text-ink">{fmtScore(shown)}</span>;
+  return <span className="tabular text-[14px] font-medium text-ink">{fmtScore(shown)}</span>;
 }
 
 export function ReliabilityBar({ value, color, width = 64 }: { value: number; color: string; width?: number }) {
@@ -37,7 +37,7 @@ export function Sparkline({ points, color, width = 64, height = 26 }: { points: 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="block overflow-visible" role="img" aria-label={label}>
       <line x1={0} x2={width} y1={baseline} y2={baseline} stroke="var(--line)" strokeWidth={1} />
-      {n > 1 && <path d={d} fill="none" stroke="var(--muted)" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />}
+      {n > 1 && <path d={d} fill="none" stroke={color} strokeOpacity={0.75} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />}
       <circle cx={x(n - 1)} cy={y(last.score)} r={3} fill={color} stroke="var(--panel)" strokeWidth={1.5} />
     </svg>
   );

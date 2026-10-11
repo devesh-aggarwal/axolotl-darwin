@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
-/* Light, calm palette. Pink (--regrow) is the one accent: recovery and the brand.
-   State colors carry meaning only. */
+/* Light, calm palette. Pink (--regrow) is the one accent and means one thing: a step that
+   healed. "Switching to backup" has its own violet so trouble and recovery never read alike.
+   Every state color doubles as text, so each holds 4.5:1 on the panels it sits on. */
 :root {
   --bg: #f7f7f5;
   --bg-raised: #fbfbfa;
@@ -10,22 +11,23 @@
   --line: #e8e7e3;
   --line-strong: #d6d4ce;
   --ink: #1d1d1b;
-  --ink-2: #45453f;
-  --muted: #76756e;
-  --faint: #a3a29b;
+  --ink-2: #3f3f3a;
+  --muted: #62615a;
+  --faint: #6f6e67;
 
   --s-idle: #c4c2bb;
   --s-queued: #a9a79f;
-  --s-running: #2f6fed;
-  --s-verifying: #cc8a00;
-  --s-passed: #1a9a62;
-  --s-failed: #e04450;
-  --s-swapping: #e2559b;
-  --s-partial: #df7a2c;
+  --s-running: #2a62d4;
+  --s-verifying: #946100;
+  --s-passed: #147a4d;
+  --s-failed: #c42c3a;
+  --s-swapping: #6a48dc;
+  --s-partial: #a8530f;
 
-  --regrow: #e2559b;
-  --regrow-soft: rgba(226, 85, 155, 0.09);
-  --focus: #2f6fed;
+  --regrow: #bf2f78;
+  --regrow-soft: #fcf0f6;
+  --regrow-line: #efc3da;
+  --focus: #2a62d4;
   --shadow: 0 1px 2px rgba(29, 29, 27, 0.05), 0 2px 8px rgba(29, 29, 27, 0.04);
   --shadow-panel: -8px 0 24px rgba(29, 29, 27, 0.08);
   --canvas-dot: #dddcd6;
@@ -49,7 +51,7 @@
   --color-swapping: var(--s-swapping);
   --color-partial: var(--s-partial);
   --color-regrow: var(--regrow);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jbmono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -58,7 +60,9 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.45;
+  text-rendering: optimizeLegibility;
 }
 
 * {
@@ -67,7 +71,31 @@ body {
 }
 
 ::selection {
-  background: rgba(47, 111, 237, 0.18);
+  background: color-mix(in srgb, var(--regrow) 22%, transparent);
+  color: var(--ink);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+input,
+textarea {
+  caret-color: var(--regrow);
+}
+
+a {
+  text-underline-offset: 3px;
 }
 
 :focus-visible {
@@ -79,10 +107,18 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Hide a scrollbar on strips that scroll sideways (the top nav on phones). */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .card {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: var(--shadow);
 }
 
@@ -258,6 +294,13 @@ body {
 .react-flow__edge.flowing path.react-flow__edge-path {
   stroke-dasharray: 6 6;
   animation: axl-dash 0.6s linear infinite;
+}
+
+/* Live stream down: nothing should look like it is happening right now. */
+.stale .anim-pulse,
+.stale .scanbar::before,
+.stale .react-flow__edge.flowing path.react-flow__edge-path {
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

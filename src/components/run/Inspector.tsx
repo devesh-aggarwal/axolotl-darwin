@@ -3,7 +3,7 @@ import { Fragment, useEffect, useState } from "react";
 import { api } from "@/components/api";
 import { RunSummaryPanel } from "@/components/run/RunSummaryPanel";
 import { useAxolotl } from "@/components/store";
-import { Button, Chip, Details, Meter } from "@/components/ui/primitives";
+import { Button, Chip, CloseIcon, Details, Meter, StatusGlyph, type GlyphKind } from "@/components/ui/primitives";
 import { issueText, stepName } from "@/components/ui/names";
 import { FAILURE_PHRASE, LAYER_NAME, SEVERITY_COLOR, STATE_COLOR, STATE_LABEL, VERDICT, fmtCents, fmtMs, shortPath, tierLabel } from "@/components/ui/tokens";
 import type { AgentStats, AttemptView, AuditOutput, CrawlOutput, FixPlanOutput, MergeOutput, NodeView, PrioritizedOutput } from "@/lib/types";
@@ -28,20 +28,24 @@ function NodeInspector({ node }: { node: NodeView }) {
       <div className="px-4 pb-4 pt-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-[16px] font-semibold text-ink">{prettyLabel(node)}</div>
+            <div className="text-[18px] font-semibold text-ink">{prettyLabel(node)}</div>
             <div className="mt-1">
               <Chip color={recovered ? "var(--regrow)" : STATE_COLOR[node.state]}>
                 {node.restored ? "Restored from checkpoint" : recovered ? "Recovered automatically" : STATE_LABEL[node.state]}
               </Chip>
             </div>
           </div>
-          <button className="text-[20px] leading-none text-muted hover:text-ink" onClick={() => actions.selectNode(null)} aria-label="Close">
-            ×
+          <button
+            className="-mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-muted hover:bg-panel-2 hover:text-ink"
+            onClick={() => actions.selectNode(null)}
+            aria-label="Close"
+          >
+            <CloseIcon />
           </button>
         </div>
         {node.kind === "agent" && !node.placeholder && canBreak && (
           <div className="mt-4 rounded-[10px] bg-panel-2 p-3">
-            <div className="text-[12.5px] text-muted">Try breaking this step</div>
+            <div className="text-[13.5px] text-muted">Try breaking this step</div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               <Button size="sm" tone="danger" onClick={() => actions.injectFault(node.id, "kill")}>
                 Crash agent
@@ -80,7 +84,7 @@ function NodeInspector({ node }: { node: NodeView }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="border-t border-line pt-4 pb-2">
-      <div className="mb-3 text-[13px] font-medium text-ink">{title}</div>
+      <div className="mb-3 text-[14px] font-medium text-ink">{title}</div>
       {children}
     </div>
   );
@@ -95,22 +99,22 @@ function prettyLabel(node: NodeView): string {
 function Story({ attempts, node }: { attempts: AttemptView[]; node: NodeView }) {
   const copy = useCopy();
   if (!attempts.length) {
-    return <div className="text-[13px] text-muted">{node.placeholder ? "Starts once the crawl finds the pages." : "Not started yet."}</div>;
+    return <div className="text-[14px] text-muted">{node.placeholder ? "Starts once the crawl finds the pages." : "Not started yet."}</div>;
   }
   return (
     <ol className="flex flex-col">
       {attempts.map((a, i) => (
         <Fragment key={a.id}>
           {i > 0 && (
-            <li className="flex items-center gap-2 py-1.5 pl-[3px] text-[12.5px] font-medium" style={{ color: "var(--regrow)" }}>
-              <span>↻</span> {copy.switched(a.agent.name)}
+            <li className="flex items-center gap-2.5 py-1.5 text-[13.5px] font-semibold" style={{ color: "var(--s-swapping)" }}>
+              <StatusGlyph kind="regrow" /> {copy.switched(a.agent.name)}
             </li>
           )}
           <StoryStep a={a} />
         </Fragment>
       ))}
       {node.state === "failed" && node.error && (
-        <li className="mt-2 rounded-[8px] bg-[color-mix(in_srgb,var(--s-failed)_7%,var(--panel))] px-3 py-2 text-[12.5px] text-[var(--s-failed)]">
+        <li className="mt-2 rounded-[8px] bg-[color-mix(in_srgb,var(--s-failed)_7%,var(--panel))] px-3 py-2 text-[13.5px] text-[var(--s-failed)]">
           Every agent found for this step failed. The rest of the run keeps going and the report marks it as partial.
         </li>
       )}
@@ -126,51 +130,51 @@ function lowerFirst(text: string): string {
 function kindLabel(a: AttemptView, runClient: string | undefined): string | null {
   if (a.agent.source === "direct") return "Called directly at its own address";
   if (a.agent.source === "darwin") return "Ran through Darwin";
-  return runClient === "darwin" ? "Simulated backup" : null;
+  return runClient === "darwin" ? "Simulated backup" : "Simulated agent";
 }
 
 function StoryStep({ a }: { a: AttemptView }) {
   const { state } = useAxolotl();
   const kind = kindLabel(a, state.run?.config.client);
   const failedLayer = a.verification?.layers.find((l) => !l.pass && !l.skipped);
-  let icon = "●";
+  let icon: GlyphKind = "dot";
   let color = "var(--s-running)";
   let text = `${a.agent.name} is working on it`;
   if (a.outcome === "verifying") {
     color = "var(--s-verifying)";
     text = `Checking ${a.agent.name}'s output`;
   } else if (a.outcome === "passed") {
-    icon = "✓";
+    icon = "check";
     color = "var(--s-passed)";
     const n = a.verification?.layers.length ?? 0;
     text = n > 1 ? `${a.agent.name} passed all ${n} checks` : n === 1 ? `${a.agent.name} passed the check` : `${a.agent.name} finished`;
   } else if (a.outcome === "hard_failure") {
-    icon = "✕";
+    icon = "cross";
     color = "var(--s-failed)";
     text = `${a.agent.name} ${a.failureType ? FAILURE_PHRASE[a.failureType] : "failed"}`;
   } else if (a.outcome === "silent_failure") {
-    icon = "!";
+    icon = "alert";
     color = "var(--s-partial)";
     text = `${a.agent.name} returned bad output${failedLayer ? `, caught by the ${LAYER_NAME[failedLayer.layer]?.toLowerCase()} check` : ""}`;
   }
   return (
     <li className="anim-rise py-1.5">
       <div className="flex items-start gap-2.5">
-        <span className="mt-[1px] w-[12px] shrink-0 text-center text-[12px] font-bold" style={{ color }}>
-          {icon}
+        <span className="mt-[3px] shrink-0" style={{ color }}>
+          <StatusGlyph kind={icon} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] leading-snug text-ink">{text}</div>
-          {a.routeReason && <div className="mt-0.5 text-[12px] text-muted">Why this agent: {lowerFirst(a.routeReason)}</div>}
+          <div className="text-[14.5px] leading-snug text-ink">{text}</div>
+          {a.routeReason && <div className="mt-0.5 text-[13px] text-muted">Why this agent: {lowerFirst(a.routeReason)}</div>}
           {(kind || a.injectedFault || a.costCents) && (
-            <div className="mt-0.5 text-[12px] text-muted">
+            <div className="mt-0.5 text-[13px] text-muted">
               {[kind, a.costCents ? `Cost ${fmtCents(a.costCents)}` : null, a.injectedFault && (a.faultSource === "chaos" ? "Broken by chaos mode" : "Injected by you")]
                 .filter(Boolean)
                 .join(" · ")}
             </div>
           )}
           {a.translation && a.translation.method !== "native" && (
-            <div className="mt-0.5 text-[12px] text-muted" title={a.translation.text}>
+            <div className="mt-0.5 text-[13px] text-muted" title={a.translation.text}>
               {a.translation.method === "llm" ? "Answer read by GPT" : "Answer read from the agent's own format"} ({a.translation.kept} finding
               {a.translation.kept === 1 ? "" : "s"})
             </div>
@@ -181,13 +185,14 @@ function StoryStep({ a }: { a: AttemptView }) {
                 <span
                   key={l.layer}
                   title={l.reason}
-                  className="rounded-full px-2 py-[1px] text-[11px]"
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[12.5px] font-medium"
                   style={{
                     color: l.skipped ? "var(--faint)" : l.pass ? "var(--s-passed)" : "var(--s-failed)",
                     background: l.skipped ? "var(--panel-2)" : l.pass ? "color-mix(in srgb, var(--s-passed) 10%, transparent)" : "color-mix(in srgb, var(--s-failed) 10%, transparent)",
                   }}
                 >
-                  {l.skipped ? "–" : l.pass ? "✓" : "✕"} {LAYER_NAME[l.layer] ?? l.name}
+                  <StatusGlyph kind={l.skipped ? "dash" : l.pass ? "check" : "cross"} size={12} />
+                  {LAYER_NAME[l.layer] ?? l.name}
                 </span>
               ))}
             </div>
@@ -207,7 +212,7 @@ function StoryStep({ a }: { a: AttemptView }) {
 
 function AttemptDetails({ a }: { a: AttemptView }) {
   return (
-    <div className="flex flex-col gap-2 rounded-[8px] bg-panel-2 p-3 text-[12px] text-ink-2">
+    <div className="flex flex-col gap-2 rounded-[8px] bg-panel-2 p-3 text-[13px] text-ink-2">
       {a.failureDetail && <div>{a.failureDetail}</div>}
       {a.translation && (
         <div>
@@ -236,7 +241,7 @@ function Code({ label, children }: { label: string; children: string }) {
   return (
     <div>
       <div className="mb-1 text-muted">{label}</div>
-      <pre className="max-h-[200px] overflow-auto whitespace-pre-wrap break-words rounded-[6px] border border-line bg-panel p-2 font-mono text-[11px] leading-relaxed text-ink-2">
+      <pre className="max-h-[200px] overflow-auto whitespace-pre-wrap break-words rounded-[6px] border border-line bg-panel p-2 font-mono text-[12px] leading-relaxed text-ink-2">
         {text}
       </pre>
     </div>
@@ -262,12 +267,12 @@ function Output({ node }: { node: NodeView }) {
   }, [runId, node.id, node.state]);
 
   if (output === undefined) return <Skeleton lines={3} />;
-  if (output === null) return <div className="text-[13px] text-muted">No output stored.</div>;
+  if (output === null) return <div className="text-[14px] text-muted">No output stored.</div>;
   const o = output as Record<string, unknown>;
   if (Array.isArray(o.pages)) {
     const pages = (o as unknown as CrawlOutput).pages;
     return (
-      <div className="text-[13px] text-ink-2">
+      <div className="text-[14px] text-ink-2">
         Found {pages.length} pages: {pages.map((p) => shortPath(p.url)).join(", ")}
       </div>
     );
@@ -275,7 +280,7 @@ function Output({ node }: { node: NodeView }) {
   if (node.builtin === "merge") {
     const m = o as unknown as MergeOutput;
     return (
-      <div className="text-[13px] leading-relaxed text-ink-2">
+      <div className="text-[14px] leading-relaxed text-ink-2">
         Combined {m.issues.length} findings from {m.coverage.filter((c) => c.passed).length} of {m.coverage.length} checks.
         {m.partialBranches.length > 0 && <span className="text-[var(--s-partial)]"> Missing: {m.partialBranches.map((p) => p.label).join(", ")}.</span>}
       </div>
@@ -289,14 +294,14 @@ function Output({ node }: { node: NodeView }) {
     const f = o as unknown as FixPlanOutput;
     return (
       <div>
-        <div className="text-[14px] font-semibold text-ink">{f.headline}</div>
-        <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{f.summary}</p>
+        <div className="text-[15px] font-semibold text-ink">{f.headline}</div>
+        <p className="mt-1 text-[14px] leading-relaxed text-ink-2">{f.summary}</p>
         <div className="mt-3">
           <Details summary={`Show ${f.topFixes.length} drafted fixes`}>
             <div className="flex flex-col gap-3">
               {f.topFixes.map((fx) => (
                 <div key={fx.issueId}>
-                  <div className="mb-1 text-[12.5px] font-medium text-ink">{fx.title}</div>
+                  <div className="mb-1 text-[13.5px] font-medium text-ink">{fx.title}</div>
                   <Code label={fx.language}>{fx.patch}</Code>
                 </div>
               ))}
@@ -318,10 +323,10 @@ function IssueList({ issues, lead }: { issues: AuditOutput["issues"]; lead: stri
   const shown = all ? issues : issues.slice(0, 5);
   return (
     <div>
-      <div className="mb-2 text-[13px] text-ink-2">{lead}</div>
+      <div className="mb-2 text-[14px] text-ink-2">{lead}</div>
       <ul className="flex flex-col gap-2">
         {shown.map((i, idx) => (
-          <li key={`${i.rule}-${i.pageUrl}-${i.selector ?? ""}-${idx}`} className="flex gap-2 text-[13px] leading-snug">
+          <li key={`${i.rule}-${i.pageUrl}-${i.selector ?? ""}-${idx}`} className="flex gap-2 text-[14px] leading-snug">
             <span className="mt-[6px] inline-block h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: SEVERITY_COLOR[i.severity] }} title={i.severity} />
             <span className="text-ink">
               {issueText(i.description)}
@@ -331,7 +336,7 @@ function IssueList({ issues, lead }: { issues: AuditOutput["issues"]; lead: stri
         ))}
       </ul>
       {issues.length > 5 && (
-        <button className="mt-2 text-[12.5px] text-muted hover:text-ink hover:underline" onClick={() => setAll((v) => !v)}>
+        <button className="mt-2 text-[13.5px] text-muted hover:text-ink hover:underline" onClick={() => setAll((v) => !v)}>
           {all ? "Show fewer" : `Show all ${issues.length}`}
         </button>
       )}
@@ -349,12 +354,12 @@ function AgentsFound({ node }: { node: NodeView }) {
     api.stats().then((s) => setStats(s.stats)).catch(() => setStats([]));
   }, [state.statsVersion]);
   const route = node.route;
-  if (!route) return <div className="text-[13px] text-muted">Axolotl searches for agents when this step starts.</div>;
+  if (!route) return <div className="text-[14px] text-muted">Axolotl searches for agents when this step starts.</div>;
   return (
     <div className="flex flex-col gap-3">
-      {route.searched.length > 0 && <div className="text-[12px] text-muted">Searched {route.searched.join(" and ")}. Tried in this order:</div>}
+      {route.searched.length > 0 && <div className="text-[13px] text-muted">Searched {route.searched.join(" and ")}. Tried in this order:</div>}
       {route.agents.length === 0 ? (
-        <div className="text-[13px] text-muted">No usable agent found.</div>
+        <div className="text-[14px] text-muted">No usable agent found.</div>
       ) : (
         <ol className="flex flex-col gap-2.5">
           {route.agents.map((c, i) => {
@@ -365,12 +370,12 @@ function AgentsFound({ node }: { node: NodeView }) {
             return (
               <li key={c.agent.agentId} className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 gap-2">
-                  <span className="mt-[1px] w-[14px] shrink-0 text-right text-[12px] tabular text-faint">{i + 1}</span>
+                  <span className="mt-[1px] w-[14px] shrink-0 text-right text-[13px] tabular text-faint">{i + 1}</span>
                   <div className="min-w-0">
-                    <div className="truncate text-[13px] text-ink" style={current ? { fontWeight: 600 } : undefined} title={c.agent.provider}>
+                    <div className="truncate text-[14px] text-ink" style={current ? { fontWeight: 600 } : undefined} title={c.agent.provider}>
                       {c.agent.name}
                     </div>
-                    <div className="text-[12px] text-muted">
+                    <div className="text-[13px] text-muted">
                       <span style={c.tier === "paid" ? { color: "var(--ink-2)" } : undefined}>{tierLabel(c.tier, c.priceCents)}</span>
                       {verdict && (
                         <span title={`${verdict.title}${c.trustScore !== undefined ? `. Trust score ${c.trustScore} of 100.` : ""}`}>
@@ -381,7 +386,7 @@ function AgentsFound({ node }: { node: NodeView }) {
                       )}
                       {current && " · in use"}
                     </div>
-                    <div className="mt-0.5 text-[12px] leading-snug text-faint">{c.reason}</div>
+                    <div className="mt-0.5 text-[13px] leading-snug text-faint">{c.reason}</div>
                   </div>
                 </div>
                 {stats === null ? (
@@ -389,7 +394,7 @@ function AgentsFound({ node }: { node: NodeView }) {
                 ) : (
                   <div className="mt-0.5 flex shrink-0 items-center gap-2" title={`Passed Axolotl's checks ${Math.round(score * 100)}% of the time (${s?.attempts ?? 0} attempts)`}>
                     <Meter value={score} width={48} color={!s?.attempts ? "var(--faint)" : score >= 0.8 ? "var(--s-passed)" : score >= 0.55 ? "var(--ink-2)" : "var(--s-failed)"} />
-                    <span className="w-[30px] text-right text-[12px] tabular text-muted">{Math.round(score * 100)}%</span>
+                    <span className="w-[30px] text-right text-[13px] tabular text-muted">{Math.round(score * 100)}%</span>
                   </div>
                 )}
               </li>
@@ -398,7 +403,7 @@ function AgentsFound({ node }: { node: NodeView }) {
         </ol>
       )}
       {route.notes.length > 0 && (
-        <ul className="flex flex-col gap-1 text-[12px] leading-snug text-[var(--s-verifying)]">
+        <ul className="flex flex-col gap-1 text-[13px] leading-snug text-[var(--s-verifying)]">
           {route.notes.map((n, i) => (
             <li key={i}>{n}</li>
           ))}
@@ -408,7 +413,7 @@ function AgentsFound({ node }: { node: NodeView }) {
         <Details summary={`Left out (${route.skipped.length})`}>
           <ul className="flex flex-col gap-2 rounded-[8px] bg-panel-2 p-3">
             {route.skipped.map((sk, i) => (
-              <li key={`${sk.agent.agentId}-${i}`} className="text-[12.5px] leading-snug">
+              <li key={`${sk.agent.agentId}-${i}`} className="text-[13.5px] leading-snug">
                 <div className="text-ink-2">{sk.agent.name}</div>
                 <div className="text-muted">{sk.reason}</div>
               </li>
