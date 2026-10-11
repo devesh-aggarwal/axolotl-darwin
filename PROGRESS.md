@@ -127,7 +127,7 @@ All LLM calls go through `src/lib/llm/gateway.ts` (model `gpt-5.6-luna`):
 Axolotl is also an MCP server at `/api/mcp`, so ChatGPT, Codex or Claude Code can hand it a failing step. Details and hosting: `docs/MCP.md`.
 
 - **Real:** address resolution (Photon, then Nominatim, cross-checked; "castano stanford" → 685 Escondido Road), failure triage, Darwin Search, and the audit run tools.
-- **Simulated (labelled in every answer):** food-delivery platforms and carts. Nothing is ever ordered or charged.
+- **Real carts through the host's own tools:** `axolotl_add_to_cart` plans routes over the host's plugins and browser (Axolotl can't call other plugins itself) and `axolotl_verify_cart` checks the real cart the host reads back. Simulated delivery agents only run with `simulate: true` (the recorded demo), labelled in every answer.
 - **Tested:** `scripts/test-mcp.ts` (16 checks, fake and `--live`). One real `claude -p` run with only this MCP connected took the one-shot crêpe prompt to a verified cart. A single call takes about 2 s.
 - **Auto-trigger:** `integrations/hooks/axolotl-stop-hook.mjs`, a Stop hook for Claude Code and Codex. Not installed anywhere yet.
 - **Same routing rules as the engine:** `routeAgents()` in `src/lib/mcp/agents.ts` runs Darwin results through `discover()` + `orderRoute()`. Unsafe, sign-in-only and uncallable agents are left out with a reason; free agents come before paid. `axolotl_start_site_audit` takes `budget_cents`.

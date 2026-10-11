@@ -8,14 +8,16 @@ import { demoSiteUrl, env } from "@/lib/env";
 import { routeAgents } from "@/lib/mcp/agents";
 import { renderAttempts, type Attempt } from "@/lib/mcp/failover";
 import { confirmOrder, orderFood, type DemoFault } from "@/lib/mcp/ordering";
-import { resolvePlace } from "@/lib/mcp/places";
+import { resolvePlace, type PlaceResolution } from "@/lib/mcp/places";
+import { parseHostTools, planHostRoutes, verifyHostCart } from "@/lib/mcp/hostRoutes";
 import { planRecovery } from "@/lib/mcp/recover";
 
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const INSTRUCTIONS =
   "Axolotl makes agent steps self-healing. Call it BEFORE giving up or asking the person for something a tool could find: " +
   "when a tool errors, says it can't do something, only partly supports a task, or when you're about to ask for an address. " +
-  "Every answer lists which agents were tried, which failed and why, and what was verified. Results marked [simulated] come from simulated agents; say so.";
+  "Axolotl can't call your other plugins; it tells you which of YOUR tools to use and in what order, resolves what they need (like the address), and verifies the result. " +
+  "Every answer lists what was tried, what failed and why, and what was verified. Results marked [simulated] come from simulated agents; say so.";
 
 export type Args = Record<string, unknown>;
 export interface ToolResult {
@@ -54,6 +56,35 @@ function baseUrl(): string {
   return env.publicBaseUrl.replace(/\/$/, "");
 }
 
+/** Saved places and map lookups, cached for ten minutes so plan and verify agree and stay fast. */
+const placeCache = new Map<string, { at: number; value: Promise<PlaceResolution> }>();
+function resolveCached(query: string): Promise<PlaceResolution> {
+  const key = query.trim().toLowerCase();
+  const hit = placeCache.get(key);
+  if (hit && Date.now() - hit.at < 10 * 60_000) return hit.value;
+  const value = resolvePlace(query);
+  value.catch(() => placeCache.delete(key));
+  placeCache.set(key, { at: Date.now(), value });
+  if (placeCache.size > 200) placeCache.delete(placeCache.keys().next().value as string);
+  return value;
+}
+
+async function simulatedCart(args: Args, item: string, deliverTo: string): Promise<ToolResult> {
+  const fault = (["none", "wrong_address", "timeout"] as DemoFault[]).find((f) => f === args.demo_fault) ?? "none";
+  const r = await orderFood({ item, deliverTo, restaurantHint: str(args.restaurant_hint), area: str(args.area), quantity: num(args.quantity), maxTotalUsd: num(args.max_total_usd), demoFault: fault });
+  let head: string;
+  if (r.cart) {
+    const c = r.cart;
+    head =
+      `[simulated] Cart ready on ${c.platform}: ${c.items.map((i) => `${i.quantity} × ${i.name} ($${i.priceUsd.toFixed(2)})`).join(", ")} from ${c.restaurant}, ${c.restaurantCity}. ` +
+      `Total $${c.totalUsd.toFixed(2)} incl. $${c.deliveryFeeUsd.toFixed(2)} delivery. Delivers to ${c.deliverTo} (address ${r.address.confidence === "confirmed" ? "verified by two map sources" : "from one map source"}). ` +
+      `Cart id ${c.cartId}. ${r.needsFromYou}`;
+  } else {
+    head = r.needsFromYou ?? "Couldn't build a cart.";
+  }
+  return { text: head + trace(r.attempts), structured: { ...r }, isError: !r.cart && r.status === "unfulfilled" };
+}
+
 export const TOOLS: ToolDef[] = [
   {
     name: "axolotl_resolve_place",
@@ -83,54 +114,110 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "axolotl_add_to_cart",
-    title: "Add food to a delivery cart, with failover",
+    title: "Get a food item into a real delivery cart, with failover",
     description:
-      "Adds a food item to a delivery cart. It never checks out or pays: the person confirms the total afterwards with axolotl_checkout. " +
-      "Use it whenever a delivery plugin can only search, can't add to cart, needs a full address, or fails. " +
-      "It resolves the delivery place itself, skips platforms with no cart tool, fails over across delivery agents, and verifies the cart: right item, right area, right address, under budget. " +
-      "Delivery platforms are SIMULATED until Darwin Act access is granted.",
+      "Use whenever a delivery plugin can only search, can't add to cart, needs a full address, or fails. " +
+      "Axolotl resolves the delivery place (saved places first, then maps) and returns an ordered plan that uses YOUR OWN tools: " +
+      "a delivery plugin with a cart tool first, then plugin search plus your browser, then the delivery site in your browser. " +
+      "Axolotl can't call your other plugins itself, so pass their names in host_tools. Follow the first route, then call axolotl_verify_cart with what the cart shows; " +
+      "if it fails, take the next route. It never checks out or pays. simulate=true runs Axolotl's simulated delivery agents instead (demos only).",
     inputSchema: {
       type: "object",
       properties: {
-        item: { type: "string", description: "What to order, e.g. \"crepe\"" },
-        deliver_to: { type: "string", description: "Delivery place as the person said it (\"castano stanford\") or a street address" },
-        restaurant_hint: { type: "string", description: "Kind of place, e.g. \"bakery\"" },
-        area: { type: "string", description: "City the restaurant should be in, e.g. \"Palo Alto\"" },
+        item: { type: "string", description: "What to get, e.g. \"protein bowl\"" },
+        deliver_to: { type: "string", description: "Delivery place as the person said it (\"the a16z sansome office\") or a street address" },
+        host_tools: {
+          type: "array",
+          items: { type: "string" },
+          description: "Your own tools or plugins that could help, as \"name\" or \"name: description\" (e.g. \"uber_eats_search\", \"doordash: Quick delivery on groceries\", \"browser\")",
+        },
+        can_browse: { type: "boolean", description: "True if you can open and click web pages (a browser or computer-use tool)" },
+        groceries: { type: "boolean", description: "True for grocery items rather than restaurant food" },
         quantity: { type: "integer", minimum: 1, maximum: 20 },
-        max_total_usd: { type: "number", description: "Budget cap; carts over it are rejected" },
-        demo_fault: { type: "string", enum: ["none", "wrong_address", "timeout"], description: "Demo only: make the first cart-capable agent fail silently or hang" },
+        max_total_usd: { type: "number", description: "Budget cap; carts over it fail verification" },
+        simulate: { type: "boolean", description: "Demo only: build the cart on Axolotl's simulated delivery agents instead of your real tools" },
+        restaurant_hint: { type: "string", description: "Simulated mode only: kind of place, e.g. \"bakery\"" },
+        area: { type: "string", description: "Simulated mode only: city the restaurant should be in" },
+        demo_fault: { type: "string", enum: ["none", "wrong_address", "timeout"], description: "Simulated mode only: make the first agent fail silently or hang" },
       },
       required: ["item", "deliver_to"],
     },
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     call: async (args) => {
-      const fault = (["none", "wrong_address", "timeout"] as DemoFault[]).find((f) => f === args.demo_fault) ?? "none";
-      const r = await orderFood({
-        item: need(args, "item"),
-        deliverTo: need(args, "deliver_to"),
-        restaurantHint: str(args.restaurant_hint),
-        area: str(args.area),
-        quantity: num(args.quantity),
-        maxTotalUsd: num(args.max_total_usd),
-        demoFault: fault,
-      });
-      let head: string;
-      if (r.cart) {
-        const c = r.cart;
-        head =
-          `[simulated] Cart ready on ${c.platform}: ${c.items.map((i) => `${i.quantity} × ${i.name} ($${i.priceUsd.toFixed(2)})`).join(", ")} from ${c.restaurant}, ${c.restaurantCity}. ` +
-          `Total $${c.totalUsd.toFixed(2)} incl. $${c.deliveryFeeUsd.toFixed(2)} delivery. Delivers to ${c.deliverTo} (address ${r.address.confidence === "confirmed" ? "verified by two map sources" : "from one map source"}). ` +
-          `Cart id ${c.cartId}. ${r.needsFromYou}`;
-      } else {
-        head = r.needsFromYou ?? "Couldn't build a cart.";
+      const item = need(args, "item");
+      const deliverTo = need(args, "deliver_to");
+      if (args.simulate === true) return simulatedCart(args, item, deliverTo);
+
+      const address = await resolveCached(deliverTo);
+      if (!address.place || address.status !== "resolved") {
+        const ask =
+          address.status === "ambiguous"
+            ? `"${deliverTo}" matches more than one place: ${[address.place, ...address.alternatives].map((p) => p?.address).join(" | ")}. Ask which one.`
+            : `No source could find "${deliverTo}". Ask the person for a street address.`;
+        return { text: ask + trace(address.attempts), structured: { status: address.status, address }, isError: false };
       }
-      return { text: head + trace(r.attempts), structured: { ...r }, isError: !r.cart && r.status === "unfulfilled" };
+      const place = address.place;
+      const routes = planHostRoutes(item, place, parseHostTools(args.host_tools), args.can_browse === true, args.groceries === true);
+      const fromSaved = address.attempts.some((a) => a.agent === "Your saved places" && a.outcome === "ok");
+      const addrLine =
+        `Deliver to ${place.address}` +
+        (fromSaved ? " (from the person's own saved places, so it is their address, not a lookup guess; no need to ask them to confirm it)." : ` (${address.confidence === "confirmed" ? "confirmed by two map sources" : "from one map source; confirm it if a plugin requires that"}).`);
+      if (routes.length === 0) {
+        return {
+          text:
+            `${addrLine}\n\nNo real route: you listed no delivery plugin and can't browse. Install a delivery plugin (Uber Eats, DoorDash, Grubhub, Instacart) or enable a browser, then call again with host_tools. ` +
+            "Or call again with simulate=true for a clearly labelled simulated cart." + trace(address.attempts),
+          structured: { status: "no_route", address, routes },
+          isError: true,
+        };
+      }
+      const plan = routes.map((r, i) => `${i + 1}. [${r.id}] ${r.via}\n${r.steps.map((st) => `   - ${st}`).join("\n")}`).join("\n");
+      return {
+        text:
+          `${addrLine}\n\nTake these routes in order, using your own tools. After a route, call axolotl_verify_cart with its route id and the cart text you read; ` +
+          `if verification fails, move to the next route. Never check out: the person does that.\n\n${plan}` +
+          trace(address.attempts),
+        structured: { status: "plan", address: place, routes, attempts: address.attempts },
+      };
+    },
+  },
+  {
+    name: "axolotl_verify_cart",
+    title: "Verify a real cart",
+    description:
+      "After taking a route from axolotl_add_to_cart, send what the cart shows (items, prices, delivery address). Axolotl checks it is the right item, " +
+      "going to the right address, under budget, and not checked out, and says whether to stop or move to the next route.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        item: { type: "string" },
+        deliver_to: { type: "string", description: "Same deliver_to as the add_to_cart call" },
+        route_id: { type: "string", description: "The route you took, e.g. \"uber-eats-search-browser\"" },
+        cart_text: { type: "string", description: "What the cart shows: item names, options, prices, subtotal and the delivery address" },
+        max_total_usd: { type: "number" },
+      },
+      required: ["item", "deliver_to", "cart_text"],
+    },
+    annotations: { readOnlyHint: true },
+    call: async (args) => {
+      const address = await resolveCached(need(args, "deliver_to"));
+      if (!address.place) return { text: "Can't verify: the delivery address doesn't resolve.", structured: {}, isError: true };
+      const route = str(args.route_id) ?? "unspecified route";
+      const check = verifyHostCart(need(args, "cart_text"), need(args, "item"), address.place, num(args.max_total_usd));
+      const attempts: Attempt[] = [
+        { step: "verify cart", agent: route, source: "public-api", outcome: check.verdict === "pass" ? "ok" : "rejected", reason: check.verdict === "pass" ? `right item, delivering to ${address.place.address}${check.found.totalUsd !== undefined ? `, $${check.found.totalUsd.toFixed(2)}` : ""}` : check.problems.join("; "), ms: 0 },
+      ];
+      const text =
+        check.verdict === "pass"
+          ? `Verified: the cart on ${route} has the right item and delivers to ${address.place.address}${check.found.totalUsd !== undefined ? ` (largest amount shown: $${check.found.totalUsd.toFixed(2)})` : ""}. Stop here and tell the person it's ready for them to check out.`
+          : `Not verified on ${route}: ${check.problems.join("; ")}. Fix it if you can (for example set the delivery address), otherwise take the next route from axolotl_add_to_cart.`;
+      return { text: text + trace(attempts), structured: { ...check, route, attempts } };
     },
   },
   {
     name: "axolotl_checkout",
-    title: "Check out a cart",
-    description: "Places the order for a cart from axolotl_add_to_cart. This spends money: only call it after the person has explicitly said yes to the total.",
+    title: "Check out a simulated cart",
+    description: "Marks a SIMULATED cart from axolotl_add_to_cart (simulate=true) as ordered. Real carts are checked out by the person in their own app. Only call after the person has said yes to the total.",
     inputSchema: { type: "object", properties: { cart_id: { type: "string" } }, required: ["cart_id"] },
     annotations: { readOnlyHint: false, destructiveHint: false },
     call: async (args) => {

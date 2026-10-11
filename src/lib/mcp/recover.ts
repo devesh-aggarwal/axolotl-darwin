@@ -59,9 +59,9 @@ export async function planRecovery(goal: string, failure: string, failedTool?: s
     case "capability_missing":
       plan.diagnosis = `${failedTool ?? "The tool"} can't do this step at all; retrying it won't help. Switch to an agent that has the capability.`;
       plan.nextAction = isFood
-        ? "Call axolotl_add_to_cart: it skips platforms without a cart tool and fails over across delivery agents."
+        ? "Call axolotl_add_to_cart with host_tools listing your delivery plugins (and can_browse if you have a browser). It plans which of your tools to use, in order, and axolotl_verify_cart checks each real cart."
         : "Pick one of the alternatives below (found on Darwin) for this step.";
-      if (isFood) plan.useTool = { name: "axolotl_add_to_cart", arguments: { item: "<what they asked for>", deliver_to: "<place or address as they said it>" } };
+      if (isFood) plan.useTool = { name: "axolotl_add_to_cart", arguments: { item: "<what they asked for>", deliver_to: "<place or address as they said it>", host_tools: ["<your delivery plugins>"], can_browse: true } };
       break;
     case "auth_or_payment":
       plan.diagnosis = "The step hit a login or payment wall.";

@@ -5,6 +5,7 @@ import { handleAxolotlMcp } from "@/lib/mcp/server";
 import { classify, planRecovery } from "@/lib/mcp/recover";
 import { matchSavedPlace, resolvePlace, verifyPlace } from "@/lib/mcp/places";
 import { orderFood } from "@/lib/mcp/ordering";
+import { parseHostTools, planHostRoutes, verifyHostCart } from "@/lib/mcp/hostRoutes";
 
 const live = process.argv.includes("--live");
 let passed = 0;
@@ -167,6 +168,31 @@ async function main() {
   await check("unresolvable address stops before any cart", async () => {
     const r = await orderFood({ item: "crepe", deliverTo: "zzqxv nowhere" }, { fetchImpl: f });
     assert.equal(r.status, "address_unresolved");
+  });
+
+  console.log("real carts through the host's own tools");
+  const office = { name: "a16z Sansome St office", houseNumber: "1025", street: "Sansome Street", city: "San Francisco", state: "CA", postcode: "94111", lat: 37.7997, lon: -122.4026, address: "1025 Sansome Street, San Francisco, CA 94111", source: "Nominatim" };
+  // The tools Codex actually had in the protein-bowl session.
+  const codexTools = parseHostTools(["uber_eats_search: Search restaurants and dishes on Uber Eats", "doordash: Quick delivery on groceries", "instacart: Groceries and more delivered"]);
+  await check("Codex's tools: Uber Eats search + browser first; grocery-only plugins aren't used for restaurant food", () => {
+    const routes = planHostRoutes("protein bowl", office, codexTools, true, false);
+    assert.equal(routes[0].id, "uber-eats-search-browser");
+    assert.ok(routes.every((r) => !r.steps.join(" ").includes("Call doordash")), "DoorDash grocery plugin not used for a bowl");
+    assert.ok(routes.some((r) => r.id === "doordash-site"), "DoorDash website is a later route");
+    assert.ok(routes[0].steps.join(" ").includes("1025 Sansome Street"));
+  });
+  await check("a plugin with a cart tool goes first; no plugins and no browser means no route", () => {
+    const routes = planHostRoutes("pizza", office, parseHostTools(["grubhub_add_to_cart: Add items to a Grubhub cart", "uber_eats_search"]), true, false);
+    assert.equal(routes[0].kind, "plugin_cart");
+    assert.equal(planHostRoutes("pizza", office, [], false, false).length, 0);
+  });
+  await check("verify: the real THRIVE cart passes; wrong address, wrong item and a placed order fail", () => {
+    const cart = "THRIVE Protein Bowls (SOMA) 60 Morris St. Chicken and Broccoli Bowl* - Protein: 46g. Choose a Base: Power grains. $16.50 Subtotal $16.50. Deliver to 1025 Sansome St";
+    assert.equal(verifyHostCart(cart, "protein bowl", office).verdict, "pass");
+    assert.match(verifyHostCart(cart.replace("1025 Sansome St", "1 Hacker Way"), "protein bowl", office).problems.join(), /doesn't show delivery/);
+    assert.match(verifyHostCart(cart, "crepe", office).problems.join(), /nothing in the cart/);
+    assert.match(verifyHostCart(`${cart}. Thanks for your order!`, "protein bowl", office).problems.join(), /looks placed/);
+    assert.match(verifyHostCart(cart, "protein bowl", office, 10).problems.join(), /over the \$10.00 cap/);
   });
 
   console.log(`\n${passed} checks passed${process.exitCode ? ", some FAILED" : ""}`);

@@ -8,8 +8,9 @@ a failing step. It is stateless JSON-RPC over Streamable HTTP and needs no extra
 | Tool | What it does | Real or simulated |
 |---|---|---|
 | `axolotl_resolve_place` | "castano stanford" → 685 Escondido Road, Stanford, CA 94305, cross-checked by a second map source | Real (Photon, then Nominatim, then a Darwin agent if Act access exists) |
-| `axolotl_add_to_cart` | Resolves the address, skips platforms with no cart tool, fails over across delivery agents, verifies the cart (item, area, address, budget), stops at checkout | Address is real; delivery platforms are **simulated** (labelled in every answer) |
-| `axolotl_checkout` | Marks the cart as placed after the person says yes | Simulated: nothing is sent or charged |
+| `axolotl_add_to_cart` | Resolves the delivery place, then returns an ordered plan that uses the host's OWN tools (pass them in `host_tools`): a delivery plugin with a cart tool, then plugin search + the host's browser, then delivery sites in the browser. `simulate: true` uses Axolotl's simulated agents instead (demos only) | Real: the host builds a real cart. Axolotl can't call other plugins itself, so it plans and verifies |
+| `axolotl_verify_cart` | Checks the cart the host read back: right item, delivering to the resolved address, under budget, not checked out. Fail = take the next route | Real |
+| `axolotl_checkout` | Marks a simulated cart as ordered. Real carts are checked out by the person | Simulated only |
 | `axolotl_recover` | Takes a goal and a failure text; returns the failure type, the next step and Darwin alternatives | Real (rules plus Darwin Search) |
 | `axolotl_find_agents` | Darwin Search vetted by the engine's routing rules (`discover` + `orderRoute`): agents that can run now in try order, plus the ones left out and why. Takes `budget_cents` | Real |
 | `axolotl_start_site_audit` / `axolotl_get_run` | Starts and reports on the self-healing website audit. The live graph is on the Run screen | Same as the app (simulated agents by default) |
