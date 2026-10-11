@@ -1,12 +1,12 @@
 "use client";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { api } from "@/components/api";
 import { RunSummaryPanel } from "@/components/run/RunSummaryPanel";
 import { useAxolotl } from "@/components/store";
-import { Button, Chip, Details, Empty, Meter } from "@/components/ui/primitives";
+import { Button, Chip, Details, Meter } from "@/components/ui/primitives";
 import { issueText, stepName } from "@/components/ui/names";
-import { FAILURE_PHRASE, LAYER_NAME, SEVERITY_COLOR, STATE_COLOR, STATE_LABEL, fmtMs, shortPath } from "@/components/ui/tokens";
-import type { AgentPool, AgentStats, AttemptView, AuditOutput, CrawlOutput, FixPlanOutput, MergeOutput, NodeView, PrioritizedOutput } from "@/lib/types";
+import { FAILURE_PHRASE, LAYER_NAME, SEVERITY_COLOR, STATE_COLOR, STATE_LABEL, VERDICT, fmtCents, fmtMs, shortPath, tierLabel } from "@/components/ui/tokens";
+import type { AgentStats, AttemptView, AuditOutput, CrawlOutput, FixPlanOutput, MergeOutput, NodeView, PrioritizedOutput } from "@/lib/types";
 import { useCopy } from "@/components/ui/copy";
 
 export function Inspector() {
@@ -68,8 +68,8 @@ function NodeInspector({ node }: { node: NodeView }) {
           </Section>
         )}
         {node.kind === "agent" && !node.placeholder && (
-          <Section title="Agent pool">
-            <Pool node={node} />
+          <Section title="Agents found">
+            <AgentsFound node={node} />
           </Section>
         )}
       </div>
@@ -111,7 +111,7 @@ function Story({ attempts, node }: { attempts: AttemptView[]; node: NodeView }) 
       ))}
       {node.state === "failed" && node.error && (
         <li className="mt-2 rounded-[8px] bg-[color-mix(in_srgb,var(--s-failed)_7%,var(--panel))] px-3 py-2 text-[12.5px] text-[var(--s-failed)]">
-          No backups left for this step. The rest of the run keeps going and the report marks it as partial.
+          Every agent found for this step failed. The rest of the run keeps going and the report marks it as partial.
         </li>
       )}
     </ol>
@@ -162,9 +162,11 @@ function StoryStep({ a }: { a: AttemptView }) {
         <div className="min-w-0 flex-1">
           <div className="text-[13.5px] leading-snug text-ink">{text}</div>
           {a.routeReason && <div className="mt-0.5 text-[12px] text-muted">Why this agent: {lowerFirst(a.routeReason)}</div>}
-          {(kind || a.injectedFault) && (
+          {(kind || a.injectedFault || a.costCents) && (
             <div className="mt-0.5 text-[12px] text-muted">
-              {[kind, a.injectedFault && (a.faultSource === "chaos" ? "Broken by chaos mode" : "Injected by you")].filter(Boolean).join(" · ")}
+              {[kind, a.costCents ? `Cost ${fmtCents(a.costCents)}` : null, a.injectedFault && (a.faultSource === "chaos" ? "Broken by chaos mode" : "Injected by you")]
+                .filter(Boolean)
+                .join(" · ")}
             </div>
           )}
           {a.translation && a.translation.method !== "native" && (
@@ -337,68 +339,84 @@ function IssueList({ issues, lead }: { issues: AuditOutput["issues"]; lead: stri
   );
 }
 
-// ---------- pool ----------
+// ---------- agents found ----------
 
-function Pool({ node }: { node: NodeView }) {
+/** What the router found for this step at run time: the try order, and what it left out and why. */
+function AgentsFound({ node }: { node: NodeView }) {
   const { state } = useAxolotl();
   const [stats, setStats] = useState<AgentStats[] | null>(null);
   useEffect(() => {
     api.stats().then((s) => setStats(s.stats)).catch(() => setStats([]));
   }, [state.statsVersion]);
-  const client = state.run?.config.client ?? "mock";
-  const withSimulated = client === "darwin" && state.run?.config.simulatedBackups !== false;
-  const darwinPool = useMemo(() => state.boot?.pools.darwin?.find((p) => p.templateId === node.templateId), [state.boot, node.templateId]);
-  const mockPool = useMemo(() => state.boot?.pools.mock?.find((p) => p.templateId === node.templateId), [state.boot, node.templateId]);
-  // A Darwin run walks its real agents, then the simulated pool when that's allowed.
-  const tiers = (client === "darwin" ? [darwinPool, withSimulated ? mockPool : undefined] : [mockPool]).filter((p): p is NonNullable<typeof p> => Boolean(p));
-  if (!tiers.length) return <Empty title="No agents set up for this step" />;
+  const route = node.route;
+  if (!route) return <div className="text-[13px] text-muted">Axolotl searches for agents when this step starts.</div>;
   return (
-    <div className="flex flex-col gap-4">
-      {tiers.map((pool, tier) => (
-        <div key={pool.client}>
-          {client === "darwin" && (
-            <div className="mb-2 text-[12px] text-faint">{pool.client === "darwin" ? "Real agents, tried first" : "Simulated backups, if every real agent fails"}</div>
-          )}
-          <PoolList pool={pool} node={node} stats={stats} backupOnly={tier > 0} />
-        </div>
-      ))}
+    <div className="flex flex-col gap-3">
+      {route.searched.length > 0 && <div className="text-[12px] text-muted">Searched {route.searched.join(" and ")}. Tried in this order:</div>}
+      {route.agents.length === 0 ? (
+        <div className="text-[13px] text-muted">No usable agent found.</div>
+      ) : (
+        <ol className="flex flex-col gap-2.5">
+          {route.agents.map((c, i) => {
+            const s = stats?.find((x) => x.agentId === c.agent.agentId && x.capability === node.capability);
+            const score = s?.score ?? 0.5;
+            const current = node.currentAgent?.agentId === c.agent.agentId;
+            const verdict = c.verdict ? VERDICT[c.verdict] : null;
+            return (
+              <li key={c.agent.agentId} className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 gap-2">
+                  <span className="mt-[1px] w-[14px] shrink-0 text-right text-[12px] tabular text-faint">{i + 1}</span>
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] text-ink" style={current ? { fontWeight: 600 } : undefined} title={c.agent.provider}>
+                      {c.agent.name}
+                    </div>
+                    <div className="text-[12px] text-muted">
+                      <span style={c.tier === "paid" ? { color: "var(--ink-2)" } : undefined}>{tierLabel(c.tier, c.priceCents)}</span>
+                      {verdict && (
+                        <span title={`${verdict.title}${c.trustScore !== undefined ? `. Trust score ${c.trustScore} of 100.` : ""}`}>
+                          {" · "}
+                          <span style={{ color: verdict.color }}>{verdict.label}</span>
+                          {c.trustScore !== undefined && <span className="tabular"> {c.trustScore}</span>}
+                        </span>
+                      )}
+                      {current && " · in use"}
+                    </div>
+                    <div className="mt-0.5 text-[12px] leading-snug text-faint">{c.reason}</div>
+                  </div>
+                </div>
+                {stats === null ? (
+                  <span className="mt-1 h-[6px] w-[64px] shrink-0 animate-pulse rounded-full bg-panel-2" />
+                ) : (
+                  <div className="mt-0.5 flex shrink-0 items-center gap-2" title={`Passed Axolotl's checks ${Math.round(score * 100)}% of the time (${s?.attempts ?? 0} attempts)`}>
+                    <Meter value={score} width={48} color={!s?.attempts ? "var(--faint)" : score >= 0.8 ? "var(--s-passed)" : score >= 0.55 ? "var(--ink-2)" : "var(--s-failed)"} />
+                    <span className="w-[30px] text-right text-[12px] tabular text-muted">{Math.round(score * 100)}%</span>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      {route.notes.length > 0 && (
+        <ul className="flex flex-col gap-1 text-[12px] leading-snug text-[var(--s-verifying)]">
+          {route.notes.map((n, i) => (
+            <li key={i}>{n}</li>
+          ))}
+        </ul>
+      )}
+      {route.skipped.length > 0 && (
+        <Details summary={`Left out (${route.skipped.length})`}>
+          <ul className="flex flex-col gap-2 rounded-[8px] bg-panel-2 p-3">
+            {route.skipped.map((sk, i) => (
+              <li key={`${sk.agent.agentId}-${i}`} className="text-[12.5px] leading-snug">
+                <div className="text-ink-2">{sk.agent.name}</div>
+                <div className="text-muted">{sk.reason}</div>
+              </li>
+            ))}
+          </ul>
+        </Details>
+      )}
     </div>
-  );
-}
-
-function PoolList({ pool, node, stats, backupOnly }: { pool: AgentPool; node: NodeView; stats: AgentStats[] | null; backupOnly: boolean }) {
-  const copy = useCopy();
-  return (
-    <ul className="flex flex-col gap-2.5">
-      {pool.members.map((m) => {
-        const s = stats?.find((x) => x.agentId === m.agentId && x.capability === pool.capability);
-        const score = s?.score ?? 0.5;
-        const current = node.currentAgent?.agentId === m.agentId;
-        return (
-          <li key={m.agentId} className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="truncate text-[13px] text-ink" style={current ? { fontWeight: 600 } : undefined}>
-                {m.name}
-              </div>
-              <div className="text-[12px] text-muted">
-                {m.role === "primary" && !backupOnly ? copy.primary : copy.backup}
-                {m.source === "direct" && " · direct"}
-                {!m.ready && " · not ready"}
-                {current && " · in use"}
-              </div>
-            </div>
-            {stats === null ? (
-              <span className="h-[6px] w-[100px] shrink-0 animate-pulse rounded-full bg-panel-2" />
-            ) : (
-              <div className="flex shrink-0 items-center gap-2" title={`Passed Axolotl's checks ${Math.round(score * 100)}% of the time (${s?.attempts ?? 0} attempts)`}>
-                <Meter value={score} width={64} color={score >= 0.8 ? "var(--s-passed)" : score >= 0.55 ? "var(--ink-2)" : "var(--s-failed)"} />
-                <span className="w-[30px] text-right text-[12px] tabular text-muted">{Math.round(score * 100)}%</span>
-              </div>
-            )}
-          </li>
-        );
-      })}
-    </ul>
   );
 }
 

@@ -2,18 +2,13 @@
 import type { ProductMode } from "@/config/mode";
 import type { NodeTemplate } from "@/config/workflow";
 import type {
-  AgentCandidate,
-  AgentPool,
-  AgentSource,
   AgentStats,
   AttemptView,
   ChaosConfig,
   NodeView,
-  PoolMember,
   RunConfig,
   RunSummary,
   TimelapseTick,
-  TrialResult,
   TrustReport,
 } from "@/lib/types";
 
@@ -45,7 +40,6 @@ export interface BootState {
   chaos: ChaosConfig;
   activeRunId: string | null;
   runs: RunSummary[];
-  pools: { mock: AgentPool[]; darwin: AgentPool[] };
   stats: AgentStats[];
   llm: LlmUsageView;
   darwin: { actConfigured: boolean };
@@ -56,22 +50,6 @@ export interface RunDetail {
   run: RunSummary;
   nodes: NodeView[];
   attempts: AttemptView[];
-}
-
-export interface SearchResponse {
-  templateId: string;
-  client: AgentSource;
-  searchId: string;
-  status: string;
-  query: string;
-  agents: AgentCandidate[];
-  note?: string;
-}
-
-export interface DirectConnectResponse {
-  candidate: AgentCandidate | null;
-  tools: { name: string; description: string }[];
-  note?: string;
 }
 
 export interface ScoreHistoryView {
@@ -119,18 +97,6 @@ export const api = {
   cancel: (id: string) => post<{ ok: boolean }>(`/api/runs/${encodeURIComponent(id)}/cancel`),
   report: <T>(id: string) => call<T>(`/api/runs/${encodeURIComponent(id)}/report`),
   setChaos: (patch: Partial<ChaosConfig>) => post<{ chaos: ChaosConfig }>("/api/chaos", patch),
-  search: (templateId: string, client: AgentSource, query?: string) =>
-    call<SearchResponse>(
-      `/api/setup/search?templateId=${encodeURIComponent(templateId)}&client=${client}${query ? `&query=${encodeURIComponent(query)}` : ""}`,
-    ),
-  savePool: (templateId: string, client: AgentSource, members: Partial<PoolMember>[]) =>
-    post<{ pool: AgentPool }>("/api/setup/pool", { templateId, client, members }),
-  directInfo: (templateId: string) =>
-    call<{ testAgent: { name: string; url: string } | null }>(`/api/setup/direct?templateId=${encodeURIComponent(templateId)}`),
-  connectDirect: (templateId: string, url: string, toolName?: string) =>
-    post<DirectConnectResponse>("/api/setup/direct", { templateId, url, toolName }),
-  healthCheck: (client: AgentSource, templateId?: string) => post<{ pools: AgentPool[] }>("/api/setup/health", { client, templateId }),
-  resetPools: (client: AgentSource) => post<{ ok: boolean }>("/api/setup/reset", { client }),
   stats: () => call<{ stats: AgentStats[]; history: ScoreHistoryView[] }>("/api/stats"),
   resetStats: () => call<{ ok: boolean }>("/api/stats", { method: "DELETE" }),
   timelapse: () => call<{ timelapse: TimelapseView | null }>("/api/timelapse"),
@@ -139,7 +105,4 @@ export const api = {
   cancelTimelapse: () => call<{ cancelled: boolean }>("/api/timelapse", { method: "DELETE" }),
   llm: () => call<{ llm: LlmUsageView }>("/api/llm"),
   trust: (capability?: string) => call<{ reports: TrustReport[] }>(`/api/trust${capability ? `?capability=${encodeURIComponent(capability)}` : ""}`),
-  // A real agent gets the same time limit as a run attempt (4 minutes), so the call waits longer than usual.
-  trial: (templateId: string, agentId: string) =>
-    call<{ trial: TrialResult; trust: TrustReport }>("/api/trust/trial", { method: "POST", body: JSON.stringify({ templateId, agentId }) }, 260_000),
 };

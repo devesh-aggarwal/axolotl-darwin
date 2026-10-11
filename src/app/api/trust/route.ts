@@ -1,4 +1,4 @@
-// Trust reports for every agent setup has seen: safety, cost and quality, updated by trials and runs.
+// Trust reports for every agent Axolotl has found: safety, cost and quality, updated by trials and runs.
 // The record Axolotl keeps of which agents actually deliver, ready to share with users later.
 import { fail, handle, ok } from "@/lib/api";
 import { allTrustReports } from "@/lib/trust/store";

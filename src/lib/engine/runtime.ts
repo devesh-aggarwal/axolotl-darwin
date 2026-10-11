@@ -3,7 +3,6 @@ import { DEFAULTS } from "@/config/workflow";
 import { demoSiteUrl, env } from "@/lib/env";
 import { getDarwinClient } from "@/lib/engine/clients";
 import { RunEngine } from "@/lib/engine/engine";
-import { startHealthScheduler } from "@/lib/engine/pools";
 import { SqliteStore, listRuns, markOrphanedRunsCrashed, type RunRecord } from "@/lib/engine/store";
 import { publish } from "@/lib/events";
 import { randomId } from "@/lib/rng";
@@ -34,7 +33,6 @@ function rt(): Runtime {
   if (!r.booted) {
     r.booted = true;
     markOrphanedRunsCrashed();
-    startHealthScheduler();
   }
   return r;
 }
@@ -47,6 +45,7 @@ export function defaultRunConfig(): RunConfig {
     maxPages: DEFAULTS.maxPages,
     client: env.defaultClient === "real" ? "darwin" : "mock",
     simulatedBackups: true,
+    budgetCents: 0,
     chaos: { ...rt().chaos, weights: { ...rt().chaos.weights } },
     llmMode: "mock",
     seed: Math.floor(Math.random() * 1_000_000),
@@ -76,6 +75,8 @@ export function sanitizeConfig(input: Partial<RunConfig> | null | undefined): Ru
     maxPages: Math.round(clamp(num(i.maxPages, base.maxPages), 1, 10)),
     client: i.client === "darwin" ? "darwin" : "mock",
     simulatedBackups: i.simulatedBackups !== false,
+    // Up to $100 a run; anything else (negative, NaN) means no paid agents.
+    budgetCents: Math.round(clamp(num(i.budgetCents, base.budgetCents), 0, 10_000)),
     chaos: sanitizeChaos(i.chaos, base.chaos),
     llmMode: i.llmMode === "live" ? "live" : "mock",
     seed: i.seed !== undefined && i.seed !== null && Number.isFinite(seed) ? Math.floor(seed) : base.seed,

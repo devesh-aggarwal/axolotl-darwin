@@ -2,6 +2,7 @@
 import { useAxolotl, type ActivityItem } from "@/components/store";
 import { CountUp, Empty, Stat } from "@/components/ui/primitives";
 import { useCopy } from "@/components/ui/copy";
+import { fmtCents } from "@/components/ui/tokens";
 
 const STATUS_TEXT: Record<string, string> = {
   running: "Running",
@@ -63,12 +64,18 @@ export function RunSummaryPanel() {
             label="Human interventions"
             value={String(humanNeeded)}
             color={humanNeeded ? "var(--s-failed)" : "var(--s-passed)"}
-            hint={humanNeeded ? "A step ran out of backups, so someone has to look at it" : undefined}
+            hint={humanNeeded ? "Every agent found for a step failed, so someone has to look at it" : undefined}
           />
         </div>
         {run.stats?.recall !== undefined && (
           <div className="mt-4 text-[12.5px] text-muted">
             Caught {Math.round(run.stats.recall * 100)}% of the problems we planted in the demo site.
+          </div>
+        )}
+        {Boolean(run.stats?.spentCents) && (
+          <div className="mt-2 text-[12.5px] text-muted">
+            Spent {fmtCents(run.stats?.spentCents ?? 0)} on paid agents
+            {run.config.budgetCents ? ` (limit ${fmtCents(run.config.budgetCents)})` : ""}.
           </div>
         )}
         {!running && (

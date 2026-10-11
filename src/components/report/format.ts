@@ -41,7 +41,7 @@ export const TIMELINE_LABEL: Record<TimelineEntry["kind"], string> = {
   hard_failure: "Agent failed",
   silent_failure: "Bad output caught",
   recovered: "Backup took over",
-  exhausted: "Gave up after every backup failed",
+  exhausted: "Gave up after every agent failed",
 };
 
 /**

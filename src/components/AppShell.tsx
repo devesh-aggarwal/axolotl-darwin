@@ -6,17 +6,15 @@ import { ReportView } from "@/components/report/ReportView";
 import { Inspector } from "@/components/run/Inspector";
 import { RunToolbar } from "@/components/run/RunToolbar";
 import { WorkflowGraph } from "@/components/run/WorkflowGraph";
-import { SetupView } from "@/components/setup/SetupView";
 import { AxolotlProvider, useAxolotl, type Tab } from "@/components/store";
 import { Empty } from "@/components/ui/primitives";
 import { Toasts } from "@/components/ui/Toasts";
 import { useCopy } from "@/components/ui/copy";
 
-// The story in order: pick agents, run, read the report. Then the proof that it matters.
+// The story in order: run, read the report. Then the proof that it matters.
 const FLOW: { id: Tab; label: string; step: number }[] = [
-  { id: "setup", label: "Agents", step: 1 },
-  { id: "run", label: "Live run", step: 2 },
-  { id: "report", label: "Report", step: 3 },
+  { id: "run", label: "Live run", step: 1 },
+  { id: "report", label: "Report", step: 2 },
 ];
 const PROOF: { id: Tab; label: string }[] = [
   { id: "night", label: "50 nights" },
@@ -137,7 +135,7 @@ function RunView() {
               <WorkflowGraph coverRight={coverRight} />
             ) : (
               <Empty title="Audit a website overnight, without babysitting it">
-                Press Start run. Axolotl sends each step to an agent, checks every answer, and swaps in a backup agent when one fails. Turn on Chaos to see it recover.
+                Press Start run. Axolotl finds an agent for each step, checks every answer, and switches to another agent when one fails. Turn on Chaos to see it recover.
               </Empty>
             )}
             {narrow && hasRun && !panelOpen && (
@@ -179,8 +177,6 @@ function Body() {
   switch (state.tab) {
     case "run":
       return <RunView />;
-    case "setup":
-      return <SetupView />;
     case "night":
       return <NightView />;
     case "evolution":

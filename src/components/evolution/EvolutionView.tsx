@@ -1,6 +1,6 @@
 "use client";
 // Evolution: per-capability leaderboards. Every checked or failed attempt moves an agent's
-// reliability score; a backup that clearly beats its primary is tried first.
+// reliability score, and the router tries higher-scoring agents earlier.
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { api } from "@/components/api";
 import { useAxolotl } from "@/components/store";
@@ -11,13 +11,13 @@ import { useThrottledLoad } from "@/components/evolution/hooks";
 import { PRIOR_SCORE, SCORE_FORMULA, buildBoards, fmtScore } from "@/components/evolution/leaderboard";
 
 const loadStats = () => api.stats();
+const loadTrust = () => api.trust();
 
 export function EvolutionView() {
   const { state, actions } = useAxolotl();
   const stats = useThrottledLoad(loadStats, state.statsVersion, 1000);
-  // The store refreshes boot (pools included) on pool_updated.
-  const pools = state.boot?.pools;
-  const workflow = state.boot?.workflow;
+  // Trust verdicts are a nice-to-have on each row; the boards render without them.
+  const trust = useThrottledLoad(loadTrust, state.statsVersion, 5000);
   const [resetting, setResetting] = useState(false);
   // Two-step reset inline: window.confirm() is suppressed in the in-app browser.
   const [confirming, setConfirming] = useState(false);
@@ -30,9 +30,8 @@ export function EvolutionView() {
 
   const boards = useMemo(() => {
     if (!stats.data) return null;
-    const all = [...(pools?.mock ?? []), ...(pools?.darwin ?? [])];
-    return buildBoards(stats.data.stats, stats.data.history, all, workflow);
-  }, [stats.data, pools, workflow]);
+    return buildBoards(stats.data.stats, stats.data.history, trust.data?.reports);
+  }, [stats.data, trust.data]);
 
   const hasStats = Boolean(stats.data?.stats.length);
   const lastUpdated = useMemo(() => stats.data?.stats.reduce((m, s) => Math.max(m, s.updatedAt), 0) ?? 0, [stats.data]);
@@ -56,7 +55,7 @@ export function EvolutionView() {
         <div className="min-w-[280px] flex-1">
           <h1 className="text-[15px] font-semibold text-ink">Agent reliability</h1>
           <p className="mt-1 text-[13px] leading-relaxed text-muted" title={SCORE_FORMULA}>
-            Agents are ranked by how often their work passes Axolotl&rsquo;s checks. A backup that&rsquo;s clearly better than the primary gets tried
+            Agents are ranked by how often their work passes Axolotl&rsquo;s checks. When a step needs an agent, the most reliable ones are tried
             first.
           </p>
           <p className="text-[13px] leading-relaxed text-muted">

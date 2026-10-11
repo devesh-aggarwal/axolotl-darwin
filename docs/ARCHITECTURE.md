@@ -1,6 +1,6 @@
 # Axolotl architecture
 
-Axolotl runs a multi-step agent workflow (a DAG) on top of Darwin and repairs it automatically: on a hard failure or a silent failure (bad output) it swaps in a pre-approved backup agent, adapts the input, reruns, verifies, and continues. Branches that didn't fail keep running.
+Axolotl runs a multi-step agent workflow (a DAG) on top of Darwin and repairs it automatically: on a hard failure or a silent failure (bad output) it swaps in another agent it found through Darwin at run time (vetted automatically, no approvals ahead of time), adapts the input, reruns, verifies, and continues. Branches that didn't fail keep running.
 
 The product spec is `speedhacks-project.md`. This file is the engineering contract between modules. **Shared types live in `src/lib/types.ts`; do not redefine them.**
 
@@ -16,15 +16,15 @@ src/
   lib/audit/                local auditing toolkit: fetcher, analyzers, rules, ground truth, spot checks, demo-site serving
   lib/darwin/types.ts       DarwinClient interface
   lib/darwin/mock.ts        MockDarwinClient (fake agents with configurable behavior)
-  lib/darwin/mockCatalog.ts mock agent catalog + default pools
+  lib/darwin/mockCatalog.ts mock agent catalog
   lib/darwin/real.ts        RealDarwinClient (public Search + Act v3)
   lib/llm/gateway.ts        the ONLY place that calls OpenAI; hard budget caps + cache
   lib/llm/judge.ts          verification layer 4 (mock judge + live judge)
   lib/llm/adapter.ts        input adapter (template instruction, LLM argument mapping)
   lib/llm/fixplan.ts        fix plan (template, or one LLM call)
   lib/verify/index.ts       verification layers 1–4
-  lib/engine/*              DAG engine, failover, chaos, stats, pools, store, timelapse
-  app/api/*                 route handlers (runs, SSE events, chaos, setup, stats, timelapse)
+  lib/engine/*              DAG engine, runtime discovery, failover, chaos, stats, store, timelapse
+  app/api/*                 route handlers (runs, SSE events, chaos, stats, trust, timelapse)
   app/demo-site/[[...path]] serves demo-site/ locally with NO security headers
   components/*              UI
 demo-site/                  static demo target site with planted issues + ground-truth.json
@@ -118,7 +118,7 @@ Issue conventions:
 
 **MockDarwinClient** (`mock.ts`, `mockCatalog.ts`)
 - Catalog: 5 agents per capability with distinct names, providers and behavior profiles: mean latency, jitter, failure weights (`error`, `timeout`, `stall`, `auth_block`, `bad_output`), corruption weights, `recall` (fraction of true issues it reports), a transport-glitch rate, and `healthy` (one agent per capability is down so health checks mark it not ready).
-- Default pool per capability: a well-known but flaky primary plus two steadier backups, so failover and the evolution leaderboard are interesting even without chaos.
+- Per capability: a well-known but flaky agent ranked first by search, two steadier ones, a mediocre one and one that's down, so failover and the leaderboard are interesting even without chaos. Some listings are paid, need an API key, or try to steer the caller, to exercise the discovery rules.
 - `startTask` is idempotent per `idempotencyKey` (same key ⇒ same task). A transport glitch throws `TransportError` once; the retry with the same key succeeds.
 - Behavior is fully determined by `rngFor(seed, nodeInstanceId, agentId, attemptNo)` unless `context.forcedFault` is set.
 - Outputs come from `runCapability` (cached per input), then degraded by recall, then optionally corrupted: `hallucinated_pages`, `empty`, `refusal`, `schema`, `fabricated`.
@@ -172,7 +172,7 @@ A node passes only if every layer passes. Every verdict is stored on the attempt
 ### `lib/engine`
 
 - Templates from `config/workflow.ts` are instantiated as node instances; `page` templates fan out per crawled page once the crawl passes.
-- Per agent node: walk the pool (primary, then ready backups ordered by reliability score). Each attempt gets a fresh idempotency key; a transport retry reuses it. Hard failures (error, timeout, stall, auth/payment block during unattended runs, killed) and silent failures (verification) move to the next backup. When every agent fails, the node is `failed`, an alert fires, and the branch stops; merge marks the run partial.
+- Per agent node: search for agents once per step per run (`lib/engine/discovery.ts`), vet them (trust verdict *avoid*, sign-in or setup required, paid without a spending limit or over it, not callable, not answering ⇒ left out), then try them in order: your agent (Option B), free, paid, simulated; within a tier by reliability score, trust score, Darwin rank. Paid agents reserve their price against `RunConfig.budgetCents` and are refunded if their task never started. Each attempt gets a fresh idempotency key; a transport retry reuses it. Hard failures (error, timeout, stall, auth/payment block during unattended runs, killed) and silent failures (verification) move to the next agent. When every agent fails, the node is `failed`, an alert fires, and the branch stops; merge marks the run partial.
 - Checkpoint after each node: passed outputs are stored, so `resume(runId)` restores them and continues.
 - Chaos: per-attempt random faults at a configurable rate, plus manual kill / timeout / corrupt per node.
 - Reliability: Beta-Bernoulli `(successes + 1) / (attempts + 2)`, latency as tiebreak.

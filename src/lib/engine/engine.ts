@@ -1,5 +1,5 @@
 // The DAG engine (spec 7.1–7.2): topological execution with fan-out, parallel branches,
-// partial-tolerant merge, checkpoints, failover across a pre-approved pool, and
+// partial-tolerant merge, checkpoints, failover across agents found at run time, and
 // hard + silent failure detection.
 import { DEFAULTS, REAL_TIMING, WORKFLOW, type NodeTemplate } from "@/config/workflow";
 import { isDemoSite, measureRecall } from "@/lib/audit/groundTruth";
@@ -7,7 +7,7 @@ import { TransportError, type DarwinClient, type TaskHandle, type TaskPoll } fro
 import { corruptWithHallucinatedPages } from "@/lib/engine/corrupt";
 import { runFixPlan, runMerge, runPrioritize } from "@/lib/engine/builtins";
 import { getDarwinClient } from "@/lib/engine/clients";
-import { HEALTH_STALE_MS, getPool, healthCheckPool, orderPools } from "@/lib/engine/pools";
+import { discover, fmtCents, orderRoute, type Discovery, type SearchFn } from "@/lib/engine/discovery";
 import { recordAttemptOutcome, getStatsMap } from "@/lib/engine/stats";
 import { isInterruptedAttempt, markInterrupted, stripNode, type RunStore } from "@/lib/engine/store";
 import { adaptInput, type Handoff } from "@/lib/llm/adapter";
@@ -16,6 +16,7 @@ import { pickWeighted, rngFor } from "@/lib/rng";
 import type {
   AgentNodeInput,
   AgentRef,
+  AgentStats,
   AttemptView,
   Capability,
   CrawlOutput,
@@ -24,7 +25,7 @@ import type {
   FaultMode,
   MergeOutput,
   NodeView,
-  PoolMember,
+  RoutedAgent,
   PrioritizedOutput,
   RunConfig,
   RunStats,
@@ -50,6 +51,8 @@ export interface EngineOptions {
   checkpoints?: Map<string, NodeView>;
   /** Attempts saved by the earlier execution, so the run's history and stats cover the whole run. */
   priorAttempts?: AttemptView[];
+  /** Agent search per source (tests inject fakes). Defaults to Darwin Search and the simulated catalog. */
+  search?: SearchFn;
 }
 
 /** Pause between a failure and the backup starting, so the swap is visible (scaled). */
@@ -74,6 +77,8 @@ interface ActiveAttempt {
   /** Manual "timeout": progress is ignored and the attempt dies at hangDeadline. */
   hangDeadline?: number;
   corrupt?: boolean;
+  /** The provider accepted the task (a paid agent is charged from here). */
+  started?: boolean;
 }
 
 type AttemptResult =
@@ -95,6 +100,10 @@ export class RunEngine {
   private readonly llmBudget?: RunLlmBudget;
   private crawlPages: string[] = [];
   private oracleCorruptAccepted = false;
+  /** Spent on paid agents this run, in cents (reserved when an attempt starts, refunded if its task never did). */
+  private spentCents = 0;
+  /** One search per step template per run, shared by its page instances. */
+  private readonly discoveries = new Map<string, Promise<Discovery>>();
   private readonly slots: Semaphore;
   private readonly startedAt = Date.now();
 
@@ -104,7 +113,10 @@ export class RunEngine {
   ) {
     this.run = run;
     this.slots = new Semaphore(Math.max(1, run.config.concurrency));
-    for (const a of opts.priorAttempts ?? []) this.attempts.push({ ...a });
+    for (const a of opts.priorAttempts ?? []) {
+      this.attempts.push({ ...a });
+      this.spentCents += a.costCents ?? 0;
+    }
     if (run.config.llmMode === "live") this.llmBudget = { limit: DEFAULTS.llmCallsPerRun, used: 0 };
   }
 
@@ -356,63 +368,50 @@ export class RunEngine {
       return node.output;
     }
     const capability = t.capability as Capability;
-    // A Darwin run walks its real agents first, then (when allowed) the simulated pool as a safety net.
-    const darwin = this.config.client === "darwin";
-    const pools = (darwin ? [getPool(t.id, "darwin"), this.config.simulatedBackups ? getPool(t.id, "mock") : null] : [getPool(t.id, "mock")]).filter(
-      (p): p is NonNullable<typeof p> => Boolean(p),
-    );
-    const pool = pools[0];
-    if (!pool) {
-      this.update(node, { state: "failed", error: "No agent pool configured for this node. Run setup first." });
-      this.alert("error", `${node.label}: no agent pool configured`, node.id);
+    // No agents are picked ahead of time: search for this step now, vet what comes back, and order it.
+    let found: Discovery;
+    try {
+      found = await this.abortable(this.discoverFor(t));
+    } catch (err) {
+      if (err instanceof RunAborted) throw err;
+      this.update(node, { state: "failed", error: `Couldn't search for agents: ${(err as Error).message}` });
+      this.alert("error", `${node.label}: couldn't search for agents`, node.id);
       return null;
     }
-    // Backups whose last health check is stale are re-checked before an unattended run relies on them.
-    const now = Date.now();
-    for (const p of pools) {
-      if (p.members.some((m) => !m.lastHealthCheck || now - m.lastHealthCheck > HEALTH_STALE_MS)) {
-        await this.abortable(healthCheckPool(p, true)).catch(() => undefined);
-        this.throwIfAborted();
-      }
-    }
+    this.throwIfAborted();
     // Exploration is seeded per run and step, so a replay with the same seed routes the same way.
     const explore = this.config.baseline ? undefined : rngFor(this.config.seed, "explore", node.id.slice(this.run.id.length + 1));
-    const ordered = orderPools(pools, capability, this.config.recordStats ? getStatsMap() : new Map(), explore);
-    if (darwin && pool.client === "mock" && this.config.simulatedBackups) {
-      this.alert("info", `${node.label}: no Darwin agents set up for this step — using simulated agents`, node.id);
-    } else if (darwin && pools.length > 1 && ordered.members.length && ordered.members[0].source === "mock") {
-      this.alert("warn", `${node.label}: no real agent is ready — falling back to simulated backups`, node.id);
+    const stats = this.config.recordStats ? getStatsMap() : new Map<string, AgentStats>();
+    const route = orderRoute(found, capability, stats, explore, this.config.baseline);
+    this.update(node, { route: route.plan });
+    if (route.explored) {
+      this.alert("info", `${node.label}: ${route.explored.name} is tried second this time (still being evaluated)`, node.id);
     }
-    for (const s of ordered.skipped) this.alert("info", `${node.label}: skipping ${s.member.name} — ${s.reason}`, node.id);
-    if (ordered.explored && !this.config.baseline) {
-      this.alert("info", `${node.label}: ${ordered.explored.name} goes first among the backups this time (still being evaluated)`, node.id);
-    }
-    if (ordered.promoted && !this.config.baseline) {
-      const p = ordered.promoted;
-      this.alert(
-        "info",
-        `${node.label}: promoted ${p.member.name} over ${p.over.name} (reliability ${p.score.toFixed(2)} vs ${p.overScore.toFixed(2)})`,
-        node.id,
-      );
-    }
-    // Without Axolotl there is no health-checked pool to fall back on: the configured primary runs, ready or not.
-    const primary = pool.members.find((m) => m.role === "primary" && m.approved);
-    const candidates = this.config.baseline ? (primary ? [primary] : ordered.members.slice(0, 1)) : ordered.members;
+    const reasons = new Map(route.plan.agents.map((c) => [c.agent.agentId, c.reason]));
+    const candidates = route.agents;
     if (!candidates.length) {
-      this.update(node, { state: "failed", error: "Every agent in the pool is unavailable" });
-      this.alert("error", `${node.label}: no ready agents in the pool`, node.id);
+      this.update(node, { state: "failed", error: "No agent found for this step can run unattended" });
+      this.alert("error", `${node.label}: no agent found can run this step unattended`, node.id);
       return null;
     }
 
     this.update(node, { state: "queued", startedAt: Date.now() });
     const release = await this.slots.acquire(this.abort.signal);
     try {
-      let previous: PoolMember | null = null;
+      let previous: RoutedAgent | null = null;
       let lastFailure = "";
+      let tried = 0;
       // Each backup is told what the agents before it got wrong.
       const failed: { name: string; reason: string }[] = [];
       for (const agent of candidates) {
         this.throwIfAborted();
+        // Paid agents run only while the run's spending limit covers their price.
+        const reserved = this.reserve(agent);
+        if (reserved === null) {
+          this.alert("info", `${node.label}: skipping ${agent.name}, its price would go over the run's ${fmtCents(this.config.budgetCents)} limit`, node.id);
+          continue;
+        }
+        tried++;
         if (previous) {
           this.update(node, { state: "swapping", swaps: node.swaps + 1 });
           this.emit({ type: "swap", runId: this.run.id, nodeId: node.id, from: toRef(previous), to: toRef(agent), reason: lastFailure });
@@ -420,8 +419,9 @@ export class RunEngine {
           this.throwIfAborted();
         }
         const result = await this.runAttempt(t, node, agent, {
-          routeReason: ordered.reasons.get(agent.agentId),
+          routeReason: reasons.get(agent.agentId),
           handoff: failed.length ? { failed: [...failed] } : undefined,
+          reservedCents: reserved,
         });
         if (result.ok) {
           // Oracle only (never read by verification): a corrupted output got through, with or without Axolotl.
@@ -433,12 +433,13 @@ export class RunEngine {
         failed.push({ name: agent.name, reason: result.detail });
         previous = agent;
       }
-      this.update(node, { state: "failed", finishedAt: Date.now(), error: `All ${candidates.length} agents failed. Last: ${lastFailure}` });
+      const error = tried ? `All ${tried} agents failed. Last: ${lastFailure}` : "Every agent found was over the run's spending limit";
+      this.update(node, { state: "failed", finishedAt: Date.now(), error });
       this.alert(
         "error",
         this.config.baseline
           ? `${node.label} failed: ${lastFailure}`
-          : `${node.label}: every pre-approved agent failed — branch stopped, run continues as partial`,
+          : `${node.label}: every agent found for this step failed — branch stopped, run continues as partial`,
         node.id,
       );
       return null;
@@ -447,11 +448,47 @@ export class RunEngine {
     }
   }
 
+  /** Search for a step's agents once per run; alerts say what was found and what was left out. */
+  private discoverFor(t: NodeTemplate): Promise<Discovery> {
+    let p = this.discoveries.get(t.id);
+    if (p) return p;
+    p = discover({
+      template: t,
+      client: this.config.client,
+      simulatedBackups: this.config.simulatedBackups,
+      budgetCents: this.config.budgetCents,
+      stats: this.config.recordStats ? getStatsMap() : new Map<string, AgentStats>(),
+      useHistory: this.config.recordStats && !this.config.baseline,
+      search: this.opts.search,
+    }).then((d) => {
+      if (!this.config.baseline) {
+        const nodeId = this.templateNodeId(t);
+        for (const n of d.notes) this.alert("warn", `${t.label}: ${n}`, nodeId);
+        const usable = d.vetted.length;
+        this.alert("info", `${t.label}: found ${usable} agent${usable === 1 ? "" : "s"} that can run unattended${d.skipped.length ? `, left out ${d.skipped.length}` : ""}`, nodeId);
+        for (const s of d.skipped) this.alert("info", `${t.label}: left out ${s.agent.name} — ${s.reason}`, nodeId);
+        if (this.config.client === "darwin" && usable && d.vetted.every((v) => v.tier === "simulated")) {
+          this.alert("warn", `${t.label}: no real agent from Darwin can run this step — using simulated agents`, nodeId);
+        }
+      }
+      return d;
+    });
+    // A failed search isn't cached, so the next instance of the step searches again.
+    p.catch(() => this.discoveries.delete(t.id));
+    this.discoveries.set(t.id, p);
+    return p;
+  }
+
+  private templateNodeId(t: NodeTemplate): string | undefined {
+    if (t.scope !== "page") return this.nodeIdFor(t);
+    return this.nodes.has(this.placeholderId(t)) ? this.placeholderId(t) : undefined;
+  }
+
   private async runAttempt(
     t: NodeTemplate,
     node: NodeView,
-    agent: PoolMember,
-    route: { routeReason?: string; handoff?: Handoff } = {},
+    agent: RoutedAgent,
+    route: { routeReason?: string; handoff?: Handoff; reservedCents?: number } = {},
   ): Promise<AttemptResult> {
     const attemptNo = node.attemptCount + 1;
     const input = this.inputFor(t, node);
@@ -475,6 +512,7 @@ export class RunEngine {
       injectedFault: fault,
       faultSource: fault ? (manual ? "manual" : "chaos") : undefined,
       routeReason: route.routeReason,
+      ...(route.reservedCents ? { costCents: route.reservedCents } : {}),
       startedAt: Date.now(),
     };
     this.attempts.push(attempt);
@@ -573,7 +611,22 @@ export class RunEngine {
       return this.failAttempt(t, node, agent, attempt, "error", `Attempt crashed: ${(err as Error).message}`);
     } finally {
       this.active.delete(node.id);
+      // A paid agent is only charged for a task that actually started.
+      if (!act.started && attempt.costCents) {
+        this.spentCents -= attempt.costCents;
+        delete attempt.costCents;
+        this.persistAttempt(attempt);
+      }
     }
+  }
+
+  /** Reserve a paid agent's price against the run's limit: cents reserved (0 for free agents), or null when it doesn't fit. */
+  private reserve(agent: RoutedAgent): number | null {
+    if (!agent.paid || this.config.baseline) return 0;
+    const price = agent.priceCents ?? 0;
+    if (this.spentCents + price > this.config.budgetCents) return null;
+    this.spentCents += price;
+    return price;
   }
 
   /** Start the task and poll it to completion, applying timeout and stall detection. */
@@ -581,7 +634,7 @@ export class RunEngine {
     client: DarwinClient,
     t: NodeTemplate,
     node: NodeView,
-    agent: PoolMember,
+    agent: RoutedAgent,
     attempt: AttemptView,
     act: ActiveAttempt,
     adapted: { instruction: string; arguments?: Record<string, unknown> },
@@ -628,6 +681,7 @@ export class RunEngine {
       return { ok: false, failureType: transport ? "transport" : "error", detail: (err as Error).message };
     }
 
+    act.started = true;
     const started = Date.now();
     // Real and direct agents run on the clock; simulated ones on the run's time scale.
     const real = client.kind !== "mock";
@@ -714,7 +768,7 @@ export class RunEngine {
   private failAttempt(
     t: NodeTemplate,
     node: NodeView,
-    agent: PoolMember,
+    agent: RoutedAgent,
     attempt: AttemptView,
     failureType: FailureType,
     detail: string,
@@ -882,6 +936,7 @@ export class RunEngine {
       issuesFound: prioritized?.issues.length ?? 0,
       durationMs: Date.now() - this.startedAt,
       acceptedCorruptOutput: this.oracleCorruptAccepted,
+      spentCents: this.spentCents,
     };
     if (prioritized && isDemoSite(this.config.siteUrl)) {
       stats.recall = measureRecall(this.config.siteUrl, prioritized.issues).ratio;
@@ -991,7 +1046,7 @@ function killedResult(act: ActiveAttempt): AttemptResult {
     : { ok: false, failureType: "killed", detail: "Agent process killed mid-task" };
 }
 
-function toRef(m: PoolMember | AgentRef): AgentRef {
+function toRef(m: RoutedAgent | AgentRef): AgentRef {
   return { agentId: m.agentId, capabilityId: m.capabilityId, name: m.name, source: m.source, provider: m.provider };
 }
 

@@ -10,7 +10,7 @@
 // Add --act to start ONE Act thread, and --call to make ONE direct tool call (both audit DEMO_SITE_URL).
 import { AGENT_TEMPLATES, type NodeTemplate } from "@/config/workflow";
 import type { DarwinClient, SearchResult, TaskHandle, TaskPoll } from "@/lib/darwin/types";
-import type { AgentCandidate, AgentNodeInput, Capability, PoolMember } from "@/lib/types";
+import type { AgentCandidate, AgentNodeInput, Capability, RoutedAgent } from "@/lib/types";
 
 const argv = new Set(process.argv.slice(2));
 const LIVE = argv.has("--live");
@@ -184,14 +184,7 @@ async function runOnce(
   adaptInput: typeof import("@/lib/llm/adapter").adaptInput,
   translateOutput: typeof import("@/lib/translate").translateOutput,
 ): Promise<{ verdict: "works" | "not allowlisted" | "failed" }> {
-  const member: PoolMember = {
-    ...agent,
-    role: "primary",
-    approved: true,
-    ready: true,
-    healthStatus: "ready",
-    lastHealthCheck: Date.now(),
-  };
+  const member: RoutedAgent = { ...agent };
   const adapted = await adaptInput({ agent: member, template: t, input, llmMode: "mock" });
   line(`Starting one ${label === "act" ? "Act thread" : "tool call"} with ${agent.name}…`);
   let handle: TaskHandle;

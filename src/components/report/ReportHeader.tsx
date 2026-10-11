@@ -1,7 +1,7 @@
 "use client";
 import { useState, type ReactNode } from "react";
 import { CountUp } from "@/components/ui/primitives";
-import { SEVERITY_COLOR } from "@/components/ui/tokens";
+import { SEVERITY_COLOR, fmtCents } from "@/components/ui/tokens";
 import type { RunReport } from "@/lib/engine/report";
 import { SEVERITIES } from "@/lib/types";
 import { fmtDuration, fmtHours, fmtWhen, listJoin, plural } from "@/components/report/format";
@@ -45,6 +45,7 @@ export function ReportHeader({ report, onShowTimeline }: { report: RunReport; on
     `Audit of ${siteName(run.config.siteUrl)}`,
     run.finishedAt ? `finished ${fmtWhen(run.finishedAt).replace(/^(Today|Yesterday)/, (m) => m.toLowerCase())}` : "in progress",
     run.finishedAt ? `took ${fmtDuration(run.finishedAt - run.createdAt)}` : "",
+    run.stats?.spentCents ? `spent ${fmtCents(run.stats.spentCents)} on paid agents` : "",
     plan ? (plan.source === "llm" ? "Written by GPT" : "Written by Axolotl") : "",
   ].filter(Boolean);
 
@@ -96,7 +97,7 @@ function BigNumbers({ report, onShowTimeline }: { report: RunReport; onShowTimel
   const silent = stats?.silentFailures ?? report.timeline.filter((t) => t.kind === "silent_failure").length;
   const recoveries = report.timeSaved.recoveries;
   const human = stats?.humanInterventions ?? 0;
-  // A step that ran out of backups needs someone to look at it, same as the run summary says.
+  // A step where every agent failed needs someone to look at it, same as the run summary says.
   const stuck = report.partialBranches.length;
   const ts = report.timeSaved;
   const recall = report.recall;
@@ -152,7 +153,7 @@ function PartialNote({ report }: { report: RunReport }) {
       <span className="font-medium text-ink">
         {lost.length === 1 ? "1 check didn't finish" : `${lost.length} checks didn't finish`}: {listJoin(lost.map((b) => stepLabel(b.label)))}.
       </span>{" "}
-      Every backup agent failed on {lost.length === 1 ? "it" : "them"}, so {lost.length === 1 ? "its" : "their"} findings are missing. Everything else in this report is
+      Every agent Axolotl found failed on {lost.length === 1 ? "it" : "them"}, so {lost.length === 1 ? "its" : "their"} findings are missing. Everything else in this report is
       complete.
     </div>
   );

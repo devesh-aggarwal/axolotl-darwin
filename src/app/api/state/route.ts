@@ -2,7 +2,6 @@ import { productMode } from "@/config/mode";
 import { AGENT_TEMPLATES, DEFAULTS, WORKFLOW } from "@/config/workflow";
 import { handle, ok } from "@/lib/api";
 import { actConfigured } from "@/lib/engine/clients";
-import { getAllPools } from "@/lib/engine/pools";
 import { defaultRunConfig, getActiveRunId, getChaos, recentRuns } from "@/lib/engine/runtime";
 import { getAllStats } from "@/lib/engine/stats";
 import { getTimelapse } from "@/lib/engine/timelapse";
@@ -20,7 +19,6 @@ export const GET = handle(async () => {
     chaos: getChaos(),
     activeRunId: getActiveRunId(),
     runs: recentRuns(15),
-    pools: { mock: getAllPools("mock"), darwin: getAllPools("darwin") },
     stats: getAllStats(),
     llm: getLlmUsage(),
     darwin: { actConfigured: actConfigured() },

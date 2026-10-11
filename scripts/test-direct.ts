@@ -1,5 +1,5 @@
-// Tests the translation step, the direct MCP client, the local test agents and mixed pools
-// (real agents first, simulated backups after). No Darwin, no OpenAI: test agents are called
+// Tests the translation step, the direct MCP client, the local test agents and runtime discovery
+// (real agents Darwin finds first, simulated ones after). No Darwin, no OpenAI: test agents are called
 // in-process and the demo site is served on 127.0.0.1.
 // Usage: npx tsx --tsconfig tsconfig.json scripts/test-direct.ts
 import fs from "node:fs";
@@ -11,7 +11,8 @@ process.env.AXOLOTL_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "axolotl-di
 process.env.OPENAI_API_KEY = "";
 process.env.AXOLOTL_CLIENT = "mock";
 
-import type { AgentNodeInput, AgentPool, AttemptView, AuditOutput, CrawlOutput, EngineEvent, Issue, PoolMember, RunConfig, RunSummary } from "@/lib/types";
+import type { SearchFn } from "@/lib/engine/discovery";
+import type { AgentCandidate, AgentNodeInput, AttemptView, AuditOutput, CrawlOutput, EngineEvent, Issue, RoutedAgent, RunConfig, RunSummary } from "@/lib/types";
 
 interface Check {
   name: string;
@@ -179,16 +180,11 @@ async function main(): Promise<void> {
   const described = await mcp.describeEndpoint(`${base}/axe-runner/mcp`);
   expect("describe: server name and tool", described.serverName === "Axe Runner" && described.tools[0]?.name === "run_axe", JSON.stringify(described));
 
-  const member = (agentId: string, url: string, toolName?: string): PoolMember => ({
+  const member = (agentId: string, url: string, toolName?: string): RoutedAgent => ({
     agentId,
     capabilityId: toolName ?? "tool",
     name: agentId,
     source: "direct",
-    role: "primary",
-    approved: true,
-    ready: true,
-    healthStatus: "ready",
-    lastHealthCheck: Date.now(),
     endpoint: { protocol: "MCP", url, toolName, origin: "local-test" },
   });
 
@@ -382,40 +378,60 @@ async function main(): Promise<void> {
   );
   expect("WebMCP (browser only) ignored", webmcp?.endpoint === undefined);
 
-  // ---------- 5. mixed pools in the engine ----------
-  section = "mixed pools";
+  // ---------- 5. real agents found at run time, simulated ones as the last resort ----------
+  section = "runtime discovery";
   const { RunEngine } = await import("@/lib/engine/engine");
   const { NullStore } = await import("@/lib/engine/store");
   const { MockDarwinClient } = await import("@/lib/darwin/mock");
-  const { savePool, getPool, resetPools } = await import("@/lib/engine/pools");
+  const { orderRoute } = await import("@/lib/engine/discovery");
   const runtime = await import("@/lib/engine/runtime");
   const mock = new MockDarwinClient();
 
   const agentFor = (capability: string) => TEST_AGENTS.find((a) => a.capability === capability)!;
-  const saveDirectPools = (mode: (templateId: string) => string | null) => {
-    resetPools("darwin");
-    for (const t of WORKFLOW.filter((w) => w.kind === "agent")) {
-      const m = mode(t.id);
-      if (m === null) continue;
-      const a = agentFor(t.capability!);
-      const pool: AgentPool = {
-        templateId: t.id,
-        capability: t.capability!,
-        client: "darwin",
-        members: [{ ...member(`direct:${a.id}`, `${base}/${a.id}/mcp${m ? `?mode=${m}` : ""}`, a.tool), name: a.name, role: "primary" }],
-        updatedAt: Date.now(),
-      };
-      savePool(pool);
-    }
+  // What "Darwin Search" returns for each step: its local test agent at a published address,
+  // in the given mode ("" = works, "error", "auth"), or nothing (null).
+  type Found = { mode: string | null; terms?: AgentCandidate["terms"] };
+  const darwinFinds = (pick: (templateId: string) => Found): SearchFn => async (source, query, capability) => {
+    if (source === "mock") return mock.search(query, { capability });
+    const t = WORKFLOW.find((w) => w.capability === capability)!;
+    const { mode, terms } = pick(t.id);
+    const a = agentFor(capability);
+    const agents: AgentCandidate[] =
+      mode === null
+        ? []
+        : [
+            {
+              agentId: `direct:${a.id}`,
+              capabilityId: a.tool,
+              name: a.name,
+              source: "darwin",
+              provider: "Local test agents",
+              capability,
+              description: a.description,
+              readiness: "unverified",
+              canStartThread: false,
+              reasons: [],
+              uncertainties: [],
+              requiredSetup: null,
+              rank: 1,
+              searchId: "s_test",
+              argumentSchema: null,
+              endpoint: { protocol: "MCP", url: `${base}/${a.id}/mcp${mode ? `?mode=${mode}` : ""}`, toolName: a.tool, origin: "local-test" },
+              terms: terms ?? { auth: "not_required", payment: "not_required", runtime: "REMOTE_MCP" },
+            },
+          ];
+    return { searchId: "s_test", status: "completed", query, agents };
   };
+  const works = (): Found => ({ mode: "" });
 
   let counter = 0;
-  const runWith = async (over: Partial<RunConfig> = {}) => {
+  const runWith = async (pick: (templateId: string) => Found, over: Partial<RunConfig> = {}) => {
     const config: RunConfig = {
       siteUrl,
       maxPages: 3,
       client: "darwin",
       simulatedBackups: true,
+      budgetCents: 0,
       chaos: { enabled: false, rate: 0, weights: { ...runtime.DEFAULT_CHAOS.weights } },
       llmMode: "mock",
       seed: 11,
@@ -433,110 +449,93 @@ async function main(): Promise<void> {
       clientFor: (agent) => (agent.source === "direct" ? mcp : mock),
       store: new NullStore(),
       publish: (e) => events.push(e),
+      search: darwinFinds(pick),
     });
     await engine.execute();
     const alerts = events.filter((e): e is Extract<EngineEvent, { type: "alert" }> => e.type === "alert").map((e) => e.message);
-    return { run: engine.run, attempts: engine.attempts as AttemptView[], alerts };
+    return { run: engine.run, attempts: engine.attempts as AttemptView[], alerts, nodes: [...engine.nodes.values()] };
   };
-  // Simulated defaults exist for every step.
-  for (const t of WORKFLOW.filter((w) => w.kind === "agent")) getPool(t.id, "mock");
 
-  saveDirectPools(() => "");
-  const all = await runWith();
+  const all = await runWith(works);
   const directPassed = all.attempts.filter((a) => a.agent.source === "direct" && a.outcome === "passed");
   expect("all-direct run completes", all.run.status === "completed", all.run.status);
-  expect("every step ran on its direct agent", all.attempts.every((a) => a.agent.source === "direct"), all.attempts.map((a) => `${a.nodeId}:${a.agent.source}:${a.outcome}`).join(" "));
+  expect("every step ran on the agent Darwin found", all.attempts.every((a) => a.agent.source === "direct"), all.attempts.map((a) => `${a.nodeId}:${a.agent.source}:${a.outcome}`).join(" "));
   expect("direct answers carry a translation note", directPassed.length > 0 && directPassed.every((a) => a.translation && a.translation.method !== "none"));
-  const simulatedOnly = await runWith({ client: "mock" });
+  const seoNode = all.nodes.find((n) => n.templateId === "seo");
+  expect("the step records its route: real agent first, simulated after", seoNode?.route?.agents[0]?.tier === "free" && seoNode.route.agents.slice(1).every((c) => c.tier === "simulated"), JSON.stringify(seoNode?.route?.agents.map((c) => c.tier)));
+  expect("the route says where it searched", JSON.stringify(seoNode?.route?.searched) === JSON.stringify(["Darwin Search", "Simulated catalog"]), JSON.stringify(seoNode?.route?.searched));
+  const simulatedOnly = await runWith(works, { client: "mock" });
   expect("finds as much as a run on simulated agents", (all.run.stats?.recall ?? 0) >= (simulatedOnly.run.stats?.recall ?? 1) && (all.run.stats?.recall ?? 0) > 0.5, `${all.run.stats?.recall} vs ${simulatedOnly.run.stats?.recall}`);
 
-  saveDirectPools((id) => (id === "seo" ? "error" : ""));
-  const fallback = await runWith();
+  const seoErrors = (id: string): Found => ({ mode: id === "seo" ? "error" : "" });
+  const fallback = await runWith(seoErrors);
   const seoAttempts = fallback.attempts.filter((a) => a.nodeId.endsWith(":seo"));
-  expect("failed direct agent falls back to a simulated backup", fallback.run.status === "completed" && seoAttempts[0]?.agent.source === "direct" && seoAttempts[0]?.outcome === "hard_failure" && seoAttempts.at(-1)?.agent.source === "mock" && seoAttempts.at(-1)?.outcome === "passed", seoAttempts.map((a) => `${a.agent.source}:${a.outcome}`).join(" "));
+  expect("failed real agent falls back to a simulated one", fallback.run.status === "completed" && seoAttempts[0]?.agent.source === "direct" && seoAttempts[0]?.outcome === "hard_failure" && seoAttempts.at(-1)?.agent.source === "mock" && seoAttempts.at(-1)?.outcome === "passed", seoAttempts.map((a) => `${a.agent.source}:${a.outcome}`).join(" "));
 
-  const noBackups = await runWith({ simulatedBackups: false });
+  const noBackups = await runWith(seoErrors, { simulatedBackups: false });
   expect("without simulated backups the step is lost, run partial", noBackups.run.status === "partial", noBackups.run.status);
 
-  saveDirectPools((id) => (id === "links" ? null : ""));
-  const missing = await runWith();
-  expect("step with no Darwin agents runs on simulated ones", missing.run.status === "completed" && missing.attempts.filter((a) => a.nodeId.endsWith(":links")).every((a) => a.agent.source === "mock"));
-  expect("…and says so", missing.alerts.some((m) => /no Darwin agents set up/.test(m)), missing.alerts.join(" | "));
+  const missing = await runWith((id) => (id === "links" ? { mode: null } : works()));
+  expect("step Darwin finds nothing for runs on simulated agents", missing.run.status === "completed" && missing.attempts.filter((a) => a.nodeId.endsWith(":links")).every((a) => a.agent.source === "mock"));
+  expect("…and says so", missing.alerts.some((m) => /no real agent from Darwin can run this step/.test(m)), missing.alerts.join(" | "));
 
-  saveDirectPools((id) => (id === "security" ? "auth" : ""));
-  const gated = await runWith();
+  const gated = await runWith((id) => (id === "security" ? { mode: "auth" } : works()));
   const sec = gated.attempts.filter((a) => a.nodeId.endsWith(":security"));
   expect(
-    "sign-in wall mid-run: blocked, then a simulated backup finishes",
+    "sign-in wall mid-run: blocked, then a simulated agent finishes",
     gated.run.status === "completed" && sec[0]?.failureType === "auth_block" && sec.at(-1)?.agent.source === "mock" && sec.at(-1)?.outcome === "passed",
     sec.map((a) => `${a.agent.source}:${a.outcome}:${a.failureType ?? ""}`).join(" "),
   );
 
-  // A health check that finds the sign-in wall takes the agent out before the run relies on it.
-  const { healthCheckPool } = await import("@/lib/engine/pools");
-  const secPool = getPool("security", "darwin")!;
-  secPool.members = secPool.members.map((m) => ({ ...m, lastHealthCheck: 0 }));
-  savePool(secPool);
-  const directDefault = (await import("@/lib/engine/clients")).getDarwinClient("direct");
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const raw = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-    return raw.startsWith(base) ? inProcess(input, init) : realFetch(input, init);
-  }) as typeof fetch;
-  process.env.AXOLOTL_ALLOW_LOCAL_MCP = "1";
-  const checked = await healthCheckPool(secPool);
-  expect("health check marks the sign-in agent not ready", directDefault.kind === "mcp" && !checked.members[0].ready, checked.members[0].healthDetail ?? "");
-  const skipped = await runWith();
-  const sec2 = skipped.attempts.filter((a) => a.nodeId.endsWith(":security"));
-  expect("…so the run goes straight to the simulated backup", sec2.length > 0 && sec2.every((a) => a.agent.source === "mock"), sec2.map((a) => a.agent.source).join(" "));
-  expect("…and says so", skipped.alerts.some((m) => /no real agent is ready/.test(m)), skipped.alerts.filter((m) => /Security/i.test(m)).join(" | "));
-  globalThis.fetch = realFetch;
-  delete process.env.AXOLOTL_ALLOW_LOCAL_MCP;
+  // A listing that says it needs a sign-in is left out before the run relies on it.
+  const declared = await runWith((id) => (id === "security" ? { mode: "", terms: { auth: "required", authMechanisms: ["API_KEY"], payment: "not_required" } } : works()));
+  const sec2 = declared.attempts.filter((a) => a.nodeId.endsWith(":security"));
+  expect("declared sign-in: the run goes straight to a simulated agent", sec2.length > 0 && sec2.every((a) => a.agent.source === "mock"), sec2.map((a) => a.agent.source).join(" "));
+  expect("…and says why", declared.alerts.some((m) => /left out Security Probe.*sign-in|left out .*sign-in/i.test(m)), declared.alerts.filter((m) => /Security/i.test(m)).join(" | "));
+  const secRoute = declared.nodes.find((n) => n.templateId === "security")?.route;
+  expect("…in the step's route too", Boolean(secRoute?.skipped.some((x) => x.agent.agentId === `direct:${agentFor("security").id}` && /sign-in/.test(x.reason))), JSON.stringify(secRoute?.skipped));
+
+  // A paid listing is left out without a spending limit.
+  const paid = await runWith((id) => (id === "seo" ? { mode: "", terms: { auth: "not_required", payment: "required", paymentTerms: "$0.05 per call" } } : works()));
+  const seoPaid = paid.nodes.find((n) => n.templateId === "seo")?.route;
+  expect("paid real agent left out with no spending limit", Boolean(seoPaid?.skipped.some((x) => /no spending limit/.test(x.reason))) && paid.attempts.filter((a) => a.nodeId.endsWith(":seo")).every((a) => a.agent.source === "mock"));
 
   // ---------- 6. routing: reasons, handoff, exploration ----------
   section = "routing";
-  saveDirectPools((id) => (id === "seo" ? "error" : ""));
-  const routed = await runWith();
+  const routed = await runWith(seoErrors);
   const seoTries = routed.attempts.filter((x) => x.nodeId.endsWith(":seo"));
   expect("every attempt says why its agent was picked", routed.attempts.every((x) => Boolean(x.routeReason)), routed.attempts.find((x) => !x.routeReason)?.nodeId ?? "");
-  expect("first try: the approved first choice", /first choice/.test(seoTries[0]?.routeReason ?? ""), seoTries[0]?.routeReason);
-  expect("backup after a real agent is labelled simulated", /Simulated backup/.test(seoTries[1]?.routeReason ?? ""), seoTries[1]?.routeReason);
-  expect("backup is told what the failed agent did wrong", /taking over this task/.test(seoTries[1]?.instruction ?? "") && /SEO Notes/.test(seoTries[1]?.instruction ?? ""), (seoTries[1]?.instruction ?? "").slice(-300));
+  expect("first try: the most reliable free agent Darwin found", /Most reliable free agent found/.test(seoTries[0]?.routeReason ?? ""), seoTries[0]?.routeReason);
+  expect("next try after a real agent is labelled simulated", /Simulated agent/.test(seoTries[1]?.routeReason ?? ""), seoTries[1]?.routeReason);
+  expect("next agent is told what the failed agent did wrong", /taking over this task/.test(seoTries[1]?.instruction ?? "") && /SEO Notes/.test(seoTries[1]?.instruction ?? ""), (seoTries[1]?.instruction ?? "").slice(-300));
   expect("first try gets no handoff", !/taking over/.test(seoTries[0]?.instruction ?? ""));
   expect("handoff carries no secrets", !/sk-[A-Za-z0-9]{10}/.test(seoTries[1]?.instruction ?? ""));
 
-  const { orderPool } = await import("@/lib/engine/pools");
-  const pool5: AgentPool = {
-    templateId: "seo",
-    capability: "seo",
-    client: "mock",
-    updatedAt: 0,
-    members: ["p", "b1", "b2", "b3"].map((id, i) => ({ ...member(id, "https://x.example.com/mcp"), source: "mock" as const, role: i === 0 ? ("primary" as const) : ("backup" as const), endpoint: undefined })),
-  };
+  const vetted = (id: string) => ({ agent: { agentId: id, capabilityId: id, name: id, source: "mock" as const }, tier: "free" as const, rank: 1, trustScore: 50 });
+  const four = { vetted: ["p", "b1", "b2", "b3"].map(vetted), skipped: [], searched: ["Simulated catalog"], notes: [] };
   const stat = (agentId: string, attempts: number, score: number) => [`${agentId}|seo`, { agentId, capability: "seo" as const, name: agentId, source: "mock" as const, attempts, successes: Math.round(score * attempts), failures: {}, totalLatencyMs: 0, score, avgLatencyMs: 100, updatedAt: 0 }] as const;
   const stats = new Map([stat("p", 30, 0.9), stat("b1", 40, 0.95), stat("b2", 1, 0.6), stat("b3", 20, 0.7)]);
-  const plain = orderPool(pool5, "seo", stats);
-  expect("without exploration: most reliable backup first", plain.members.map((m) => m.agentId).join() === "p,b1,b3,b2", plain.members.map((m) => m.agentId).join());
-  const explored = orderPool(pool5, "seo", stats, () => 0.01);
-  expect("exploration moves a less-tested backup up", explored.members[1]?.agentId === "b2" && explored.explored?.agentId === "b2", explored.members.map((m) => m.agentId).join());
-  expect("…and says why", /Less-tested/.test(explored.reasons.get("b2") ?? ""), explored.reasons.get("b2"));
-  const noExplore = orderPool(pool5, "seo", stats, () => 0.5);
-  expect("exploration is occasional (rate 10%)", noExplore.members[1]?.agentId === "b1");
-  expect("reasons cite the track record", /95% verified over 40 runs/.test(plain.reasons.get("b1") ?? ""), plain.reasons.get("b1"));
+  const ids = (r: { agents: { agentId: string }[] }) => r.agents.map((m) => m.agentId).join();
+  const plain = orderRoute(four, "seo", stats);
+  expect("without exploration: most reliable first", ids(plain) === "b1,p,b3,b2", ids(plain));
+  const explored = orderRoute(four, "seo", stats, () => 0.01);
+  expect("exploration moves a less-tested agent up to second", explored.agents[1]?.agentId === "b2" && explored.explored?.agentId === "b2", ids(explored));
+  expect("…and says why", /Less-tested/.test(explored.plan.agents[1]?.reason ?? ""), explored.plan.agents[1]?.reason);
+  const noExplore = orderRoute(four, "seo", stats, () => 0.5);
+  expect("exploration is occasional (rate 10%)", noExplore.agents[1]?.agentId === "p");
+  expect("reasons cite the track record", /95% verified over 40 runs/.test(plain.plan.agents[0]?.reason ?? ""), plain.plan.agents[0]?.reason);
 
   // ---------- 7. Option B switch ----------
   section = "option b";
-  const aPrimary = getPool("seo", "mock")!.members[0].name;
   process.env.AXOLOTL_MODE = "your-agent";
-  const bPool = getPool("seo", "mock")!;
-  expect("'Your agent' is the default primary", bPool.members[0].name === "Your agent" && bPool.members[0].role === "primary", bPool.members[0].name);
-  expect("Darwin agents are its backups", bPool.members.slice(1).every((m) => m.role === "backup" && m.name !== "Your agent"));
-  const bRun = await runWith({ client: "mock", seed: 3 });
+  const bRun = await runWith(works, { client: "mock", seed: 3 });
   const firstTries = bRun.attempts.filter((x) => x.attemptNo === 1);
   expect("a run completes", bRun.run.status === "completed", bRun.run.status);
   expect("every step tries your agent first", firstTries.length > 0 && firstTries.every((x) => x.agent.name === "Your agent"));
+  expect("Darwin's agents follow it", bRun.nodes.filter((n) => n.route).every((n) => n.route!.agents[0]?.tier === "yours" && n.route!.agents.slice(1).every((c) => c.tier !== "yours")));
   delete process.env.AXOLOTL_MODE;
-  expect("Option A's pools are untouched", getPool("seo", "mock")!.members[0].name === aPrimary, getPool("seo", "mock")!.members[0].name);
+  const aRun = await runWith(works, { client: "mock", seed: 3 });
+  expect("Option A never adds your agent", aRun.attempts.every((x) => x.agent.name !== "Your agent"));
 
   section = "network";
   expect("no request left the machine", blocked.length === 0, blocked.join(", "));

@@ -8,7 +8,7 @@ import net from "node:net";
 import { env } from "@/lib/env";
 import { AGENT_TEMPLATES, getTemplate } from "@/config/workflow";
 import { applyMapping, buildInstruction, heuristicMapping } from "@/lib/llm/adapter";
-import type { AgentEndpoint, AgentRef, Capability, PoolMember } from "@/lib/types";
+import type { AgentEndpoint, AgentRef, Capability, RoutedAgent } from "@/lib/types";
 import {
   TransportError,
   type DarwinClient,
@@ -283,7 +283,7 @@ export class McpDirectClient implements DarwinClient {
       const session = await this.connect(endpoint.url);
       const tools = await this.listTools(session, true);
       void this.closeSession(session);
-      const capability = (agent as Partial<PoolMember> & { capability?: Capability }).capability ?? capabilityFromId(agent.capabilityId);
+      const capability = (agent as Partial<RoutedAgent> & { capability?: Capability }).capability ?? capabilityFromId(agent.capabilityId);
       const tool = this.pickTool(tools, endpoint, capability);
       return { status: "ready", ready: true, detail: `Connected; tool "${tool.name}" answers.`, checkedAt };
     } catch (err) {
@@ -521,7 +521,7 @@ export class McpDirectClient implements DarwinClient {
 }
 
 function endpointOf(agent: AgentRef): AgentEndpoint | undefined {
-  const e = (agent as Partial<PoolMember>).endpoint;
+  const e = (agent as Partial<RoutedAgent>).endpoint;
   return e && e.protocol === "MCP" && typeof e.url === "string" ? e : undefined;
 }
 

@@ -40,6 +40,7 @@ async function main() {
             maxPages,
             client: "mock",
             simulatedBackups: false,
+            budgetCents: 0,
             chaos: { enabled: chaosRate > 0, rate: chaosRate, weights: { ...DEFAULT_CHAOS.weights } },
             llmMode: "mock",
             seed: 1000 + i * 7919,

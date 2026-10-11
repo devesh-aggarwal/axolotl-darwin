@@ -1,4 +1,4 @@
-import type { AttemptOutcome, FailureType, NodeState, Severity } from "@/lib/types";
+import type { AttemptOutcome, FailureType, NodeState, RouteTier, Severity, TrustVerdict } from "@/lib/types";
 
 export const STATE_COLOR: Record<NodeState, string> = {
   idle: "var(--s-idle)",
@@ -108,4 +108,27 @@ export function shortPath(url: string | undefined): string {
   } catch {
     return url;
   }
+}
+
+/** Trust check verdicts in plain words, with the color they carry. */
+export const VERDICT: Record<TrustVerdict, { label: string; color: string; title: string }> = {
+  trusted: { label: "Trusted", color: "var(--s-passed)", title: "Safe, free, and proven accurate" },
+  untested: { label: "Untested", color: "var(--muted)", title: "Nothing wrong found, but its accuracy hasn't been measured yet" },
+  caution: { label: "Caution", color: "var(--s-verifying)", title: "Usable, but the trust check found something worth reading" },
+  avoid: { label: "Unsafe", color: "var(--s-failed)", title: "Failed the safety check, so Axolotl never calls it" },
+};
+
+/** Dollars from cents: "$0.04", "$1", "$2.50". */
+export function fmtCents(cents: number): string {
+  if (cents > 0 && cents < 1) return `$${(cents / 100).toFixed(3)}`;
+  const d = cents / 100;
+  return Number.isInteger(d) ? `$${d}` : `$${d.toFixed(2)}`;
+}
+
+/** Where an agent sits in a step's try order, in plain words. */
+export function tierLabel(tier: RouteTier, priceCents: number | undefined): string {
+  if (tier === "yours") return "Your agent";
+  if (tier === "free") return "Free";
+  if (tier === "simulated") return "Simulated";
+  return priceCents !== undefined ? `Paid ${fmtCents(priceCents)}` : "Paid";
 }

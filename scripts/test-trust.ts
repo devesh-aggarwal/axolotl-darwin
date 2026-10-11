@@ -200,7 +200,7 @@ async function main(): Promise<void> {
     const { primary, backups } = defaultMockPool(capability);
     for (const m of [primary, ...backups]) {
       const v = byName.get(m.name)?.verdict;
-      expect(`${capability}: default pool member ${m.name} is not blocked`, v !== "avoid", String(v));
+      expect(`${capability}: reference agent ${m.name} is not blocked`, v !== "avoid", String(v));
     }
   }
   expect("Quillstone (asks for keys) is unsafe", byName.get("Quillstone SEO Lite")?.verdict === "avoid");
@@ -223,22 +223,14 @@ async function main(): Promise<void> {
   store.withTrust((await client.search("seo", { capability: "seo" })).agents);
   store.withTrust((await client.search("crawl", { capability: "crawl" })).agents);
 
-  // ---------- pool route ----------
-  section = "pool";
-  const { POST: savePool } = await import("@/app/api/setup/pool/route");
+  // ---------- runtime discovery uses the verdict ----------
+  section = "discovery";
+  const { discover } = await import("@/lib/engine/discovery");
   const seoTemplate = AGENT_TEMPLATES.find((t) => t.capability === "seo")!;
-  const save = (agentId: string, name: string) =>
-    savePool(
-      new Request("http://localhost/api/setup/pool", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ templateId: seoTemplate.id, client: "mock", members: [{ agentId, capabilityId: agentId.replace("mock:", "mock-cap:"), name }] }),
-      }),
-    );
-  const refused = await save("mock:seo:quillstone", "Quillstone SEO Lite");
-  expect("unsafe agent refused (422)", refused.status === 422, String(refused.status));
-  const accepted = await save("mock:seo:tagwarden", "Tagwarden");
-  expect("safe agent saved", accepted.status === 200, String(accepted.status));
+  const found = await discover({ template: seoTemplate, client: "mock", simulatedBackups: false, budgetCents: 0, stats: new Map(), useHistory: true });
+  expect("unsafe agent is never routed", !found.vetted.some((v) => v.agent.agentId === "mock:seo:quillstone"));
+  expect("…and the route says why", found.skipped.some((x) => x.agent.agentId === "mock:seo:quillstone" && /safety check/.test(x.reason)), JSON.stringify(found.skipped));
+  expect("safe agents are routed", found.vetted.some((v) => v.agent.agentId === "mock:seo:tagwarden"));
 
   // ---------- trials ----------
   section = "trial";

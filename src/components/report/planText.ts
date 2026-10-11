@@ -167,11 +167,11 @@ export function planHeadline(issues: PrioritizedIssue[], siteUrl: string, partia
   return `${plural(sorted.length, "problem")} found. Start with: ${firstStep(sorted[0], siteUrl)}.`;
 }
 
-/** The sentence about checks that ran out of backups. Empty when every check finished. */
+/** The sentence about checks where every agent failed. Empty when every check finished. */
 export function partialSentence(partial: { label: string }[]): string {
   if (!partial.length) return "";
   const names = listJoin(partial.map((p) => stepLabel(p.label)));
-  return `${names} didn't finish because every backup failed, so ${partial.length === 1 ? "its" : "their"} findings are missing.`;
+  return `${names} didn't finish because every agent Axolotl found for ${partial.length === 1 ? "it" : "them"} failed, so ${partial.length === 1 ? "its" : "their"} findings are missing.`;
 }
 
 export function planSummary(a: {

@@ -103,7 +103,7 @@ export const WORKFLOW: NodeTemplate[] = [
     builtin: "merge",
     dependsOn: ["a11y", "perf", "seo", "security", "links"],
     scope: "run",
-    description: "Waits for every branch. A branch that exhausted its backups is marked partial, not fatal.",
+    description: "Waits for every branch. A branch where every agent found failed is marked partial, not fatal.",
   },
   {
     id: "prioritize",
@@ -156,5 +156,4 @@ export const DEFAULTS = {
   manualAuditHours: 6,
   /** Hard cap on live LLM calls per run (judge + adapter + fix plan). */
   llmCallsPerRun: 20,
-  backupsPerNode: 2,
 };

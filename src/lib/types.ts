@@ -99,9 +99,9 @@ export interface FixPlanOutput {
   source: "llm" | "template";
 }
 
-// ---------- agents, pools ----------
+// ---------- agents ----------
 
-/** Where a pool's agents are looked up: the simulated catalog or Darwin Search. */
+/** Where a run's agents are looked up: the simulated catalog or Darwin Search. */
 export type AgentSource = "mock" | "darwin";
 
 /**
@@ -116,7 +116,7 @@ export interface AgentEndpoint {
   url: string;
   /** Tool to call; picked by capability from tools/list when absent. */
   toolName?: string;
-  /** darwin: published and verified by Darwin Search; manual: entered during setup; local-test: Axolotl's own test agents. */
+  /** darwin: published and verified by Darwin Search; manual: given by address (YOUR_AGENT_MCP_URL); local-test: Axolotl's own test agents. */
   origin: "darwin" | "manual" | "local-test";
 }
 
@@ -218,7 +218,7 @@ export interface TrustReport {
   score: number;
   /**
    * trusted: safe, free and proven accurate; untested: nothing wrong found, accuracy not measured yet;
-   * caution: usable, but read the signals; avoid: looks unsafe, so setup won't add it to a pool.
+   * caution: usable, but read the signals; avoid: looks unsafe, so runs never use it.
    */
   verdict: TrustVerdict;
   safety: TrustDimensionView;
@@ -229,25 +229,39 @@ export interface TrustReport {
   checkedAt: number;
 }
 
-export interface PoolMember extends AgentRef {
-  role: "primary" | "backup";
-  approved: boolean;
-  ready: boolean;
-  healthStatus: Readiness;
-  lastHealthCheck: number | null;
-  healthDetail?: string;
+/** An agent the router found for a step at run time, with what it needs to be called. */
+export interface RoutedAgent extends AgentRef {
+  capability?: Capability;
   searchId?: string;
   argumentSchema?: Record<string, unknown> | null;
   /** Set for direct agents. */
   endpoint?: AgentEndpoint;
+  /** The provider charges for each call. */
+  paid?: boolean;
+  /** Price per call in cents, when the listing states one. */
+  priceCents?: number;
 }
 
-export interface AgentPool {
-  templateId: string;
-  capability: Capability;
-  client: AgentSource;
-  members: PoolMember[];
-  updatedAt: number;
+/** Where an agent sits in a step's route: free agents first, then paid (within the run's budget), then simulated. */
+export type RouteTier = "yours" | "free" | "paid" | "simulated";
+
+export interface RouteCandidate {
+  agent: AgentRef;
+  tier: RouteTier;
+  /** Why it is at this point in the order ("Most reliable free agent (94% verified over 31 runs)"). */
+  reason: string;
+  priceCents?: number;
+  trustScore?: number;
+  verdict?: TrustVerdict;
+}
+
+/** What the router did for a step: where it searched, what it will try in order, and what it left out. */
+export interface RoutePlan {
+  searched: string[];
+  agents: RouteCandidate[];
+  skipped: { agent: AgentRef; reason: string }[];
+  /** Search notes or errors worth showing ("Darwin Search failed: ..."). */
+  notes: string[];
 }
 
 export interface AgentStats {
@@ -314,7 +328,7 @@ export type NodeState =
   | "verifying"
   | "swapping"
   | "passed"
-  | "failed" // every agent in the pool failed: branch stops
+  | "failed" // every agent found for the step failed: branch stops
   | "partial" // merge/downstream finished with some branches missing
   | "cancelled";
 
@@ -343,6 +357,8 @@ export interface AttemptView {
   translation?: TranslationNote;
   /** Why the router picked this agent at this point ("Next most reliable backup (94% verified over 31 runs)"). */
   routeReason?: string;
+  /** Charged for this attempt (paid agents only), in cents. */
+  costCents?: number;
   latencyMs?: number;
   startedAt: number;
   finishedAt?: number;
@@ -384,6 +400,8 @@ export interface NodeView {
   placeholder?: boolean;
   output?: unknown;
   error?: string;
+  /** Agents found for this step at run time, in the order they are tried, and the ones left out. */
+  route?: RoutePlan;
 }
 
 export interface ChaosConfig {
@@ -399,10 +417,15 @@ export interface RunConfig {
   maxPages: number;
   client: AgentSource;
   /**
-   * Darwin runs only: after the real agents in a step's pool, fall back to the simulated pool, so a
+   * Darwin runs only: after the real agents Darwin finds for a step, fall back to simulated agents, so a
    * step still finishes when every real agent fails or none is reachable. Shown as "Simulated" in the UI.
    */
   simulatedBackups: boolean;
+  /**
+   * Most the run may spend on paid agents, in cents. 0 means paid agents are never used. With a
+   * budget, every free agent for a step is tried before any paid one.
+   */
+  budgetCents: number;
   chaos: ChaosConfig;
   /** "live" allows real OpenAI calls (budget-guarded); "mock" never calls the network. */
   llmMode: "mock" | "live";
@@ -444,6 +467,8 @@ export interface RunStats {
   recall?: number;
   /** Oracle (hidden from verification): did any accepted output contain injected corruption? */
   acceptedCorruptOutput?: boolean;
+  /** Spent on paid agents, in cents. */
+  spentCents?: number;
 }
 
 // ---------- live events (SSE) ----------
@@ -458,7 +483,6 @@ export type EngineEvent =
   | { type: "alert"; runId: string; nodeId?: string; level: "info" | "warn" | "error"; message: string; at: number }
   | { type: "run_finished"; run: RunSummary }
   | { type: "stats_updated"; at: number }
-  | { type: "pool_updated"; templateId: string }
   | { type: "timelapse"; data: TimelapseTick };
 
 export interface TimelapseSide {

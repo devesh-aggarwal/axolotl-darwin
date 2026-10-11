@@ -6,11 +6,11 @@ Everything below is built and tested. On the day we plug in what Darwin gives us
 
 | | Option A (default) | Option B |
 |---|---|---|
-| Story | A workflow built from Darwin agents; pre-approved Darwin backups take over | Your own agent goes first; Darwin agents take over when it fails |
+| Story | A workflow built from Darwin agents; when one fails, Axolotl finds and vets another through Darwin | Your own agent goes first; Darwin agents take over when it fails |
 | Setting | nothing (or `AXOLOTL_MODE=workflow`) | `AXOLOTL_MODE=your-agent` in `.env`, then restart |
-| Default primary | the top Darwin agent per step | "Your agent" (a simulated stand-in), or your real agent added by its address in Setup |
+| Tried first | the most reliable agent Darwin finds for the step | "Your agent" (a simulated stand-in), or your real agent at `YOUR_AGENT_MCP_URL` |
 
-Both use the same engine, checks, failover and screens; only the wording and default pools change. Pools are stored per mode, so switching never overwrites the other setup. Wording lives in `src/config/mode.ts`.
+Both use the same engine, discovery, checks, failover and screens; only the wording and the first agent change. Wording lives in `src/config/mode.ts`.
 
 To fully commit to one later, ask: "We picked A (or B): make it the only story and remove the other mode's wording."
 
@@ -38,13 +38,13 @@ Ask the Darwin rep at kickoff:
 2. Would they rather see a reliability layer for Darwin workflows (A) or a fallback that brings outside agents' work to Darwin (B)?
 3. Can we get Act access and a user token? An application or search key alone can't run agents. If not: which agents have verified MCP endpoints we can call directly?
 
-If we only get Search, say so if judges ask: setup uses live Darwin Search, and runs execute on our own harness.
+If we only get Search, say so if judges ask: runs search live Darwin, and execute on our own harness.
 
 ## 3. Three ways real agents can run
 
-1. **Act works:** pick Darwin agents in Setup (Agents → Darwin Search). Runs go through Darwin.
+1. **Act works:** start a run with Agents = Darwin. Each step searches Darwin and runs what it finds through Act.
 2. **No Act, but agents with endpoints:** search results marked "can run directly" run over MCP at their own address, without Act. You can also paste a provider's documented MCP address under "Add an agent by its address".
-3. **Search only:** Setup shows real Darwin results; runs use simulated agents and say so on every step ("Simulated backup").
+3. **Search only:** each step shows the real Darwin results it found and why it couldn't call them; runs use simulated agents and say so on every step ("Simulated agent").
 
 In every case, turn on **Simulated backups** (Live run → Settings, on by default): real agents go first, and simulated ones finish a step only if all the real ones fail. If a real agent fails on stage, the backup takes over, which is the pitch.
 
@@ -55,11 +55,11 @@ In every case, turn on **Simulated backups** (Live run → Settings, on by defau
 
 ## 5. Try it now, without Darwin
 
-Axolotl ships six local test agents (one per step) that speak MCP and answer in other tools' formats. In Setup → Darwin Search → "Add an agent by its address" → "Use the local test agent". Pick it as primary, save, then start a run with Agents = Darwin. They're labelled "Local test agent" and are not Darwin agents.
+Axolotl ships six local test agents (one per step, at `/test-agents/<id>/mcp`) that speak MCP and answer in other tools' formats. `scripts/test-direct.ts` runs the whole workflow on them as if Darwin Search had found them. There's no screen for adding agents by hand any more (agents are found at run time); for Option B, `YOUR_AGENT_MCP_URL` points "Your agent" at any MCP address.
 
 ## Checks
 
 ```bash
-npx tsx --tsconfig tsconfig.json scripts/test-direct.ts       # translation, direct MCP, mixed pools, Option B (no network)
+npx tsx --tsconfig tsconfig.json scripts/test-direct.ts       # translation, direct MCP, runtime discovery, Option B (no network)
 npx tsx --tsconfig tsconfig.json --env-file=.env scripts/llm-translate-smoke.ts   # 2 real GPT calls, cached after
 ```

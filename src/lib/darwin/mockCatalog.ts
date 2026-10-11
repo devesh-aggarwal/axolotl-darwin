@@ -511,8 +511,9 @@ export function getMockAgent(agentId: string): MockAgentProfile | undefined {
 }
 
 /**
- * Default pre-approved pool: the popular flaky agent as primary, the two steady agents as backups.
- * In "your-agent" mode the primary is the team's own (simulated) agent instead.
+ * Reference agents per capability for tests: the popular flaky agent and the two steady ones
+ * ("your-agent" mode puts the team's own simulated agent first instead). Runs don't use this:
+ * they find their agents at run time (src/lib/engine/discovery.ts).
  */
 export function defaultMockPool(capability: Capability, mode: "workflow" | "your-agent" = "workflow"): { primary: MockAgentProfile; backups: MockAgentProfile[] } {
   const agents = mockAgentsFor(capability);

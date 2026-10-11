@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAxolotl } from "@/components/store";
 import { Button, Segmented, Toggle } from "@/components/ui/primitives";
+import { fmtCents } from "@/components/ui/tokens";
 import type { AgentSource } from "@/lib/types";
 
 export function RunToolbar() {
@@ -13,6 +14,10 @@ export function RunToolbar() {
   const client = clientDraft ?? boot?.defaults.client ?? "mock";
   const [judge, setJudge] = useState<"mock" | "live">("mock");
   const [simulatedBackups, setSimulatedBackups] = useState(true);
+  // Spending limit per run, in dollars as typed; sent as cents.
+  const [budgetDraft, setBudgetDraft] = useState<string | null>(null);
+  const budgetDollars = budgetDraft ?? String((boot?.defaults.budgetCents ?? 0) / 100);
+  const budgetCents = Math.round(Math.min(100, Math.max(0, Number(budgetDollars) || 0)) * 100);
   const [starting, setStarting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -45,7 +50,7 @@ export function RunToolbar() {
   const start = async () => {
     setStarting(true);
     // Chaos comes from the server's current setting (the toggle updates it immediately).
-    await actions.startRun({ siteUrl, client, llmMode: judge, simulatedBackups });
+    await actions.startRun({ siteUrl, client, llmMode: judge, simulatedBackups, budgetCents });
     setStarting(false);
   };
 
@@ -87,7 +92,7 @@ export function RunToolbar() {
                 <>
                   {!boot?.darwin.actConfigured && (
                     <div className="mt-1.5 text-[12px] leading-snug text-muted">
-                      Darwin Act isn&rsquo;t connected. Agents added by address run directly; the others can&rsquo;t start.
+                      Darwin Act isn&rsquo;t connected. Agents that publish their own address are called directly; the others are left out.
                     </div>
                   )}
                   <div className="mt-3">
@@ -103,6 +108,33 @@ export function RunToolbar() {
                   </div>
                 </>
               )}
+            </div>
+            <div>
+              <label htmlFor="run-budget" className="mb-1.5 block text-[12.5px] text-muted">
+                Spending limit per run
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="relative w-[96px]">
+                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-muted">$</span>
+                  <input
+                    id="run-budget"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={budgetDollars}
+                    onChange={(e) => setBudgetDraft(e.target.value)}
+                    className="tabular h-8 w-full rounded-[8px] border border-line-strong bg-panel pl-6 pr-2 text-[13px] text-ink outline-none focus:border-[var(--focus)]"
+                  />
+                </div>
+                <span className="text-[12.5px] text-ink-2">{budgetCents ? "per run" : "No paid agents"}</span>
+              </div>
+              <div className="mt-1.5 text-[12px] leading-snug text-muted">
+                {budgetCents
+                  ? `Free agents go first. Paid ones are tried only if every free one fails, up to ${fmtCents(budgetCents)} in total.`
+                  : "Paid agents are skipped. Set a limit to let Axolotl use them when every free agent fails."}
+              </div>
             </div>
             <div>
               <div className="mb-1.5 text-[12.5px] text-muted">Output review</div>

@@ -6,7 +6,7 @@ import { stepName } from "@/components/ui/names";
 import { FAILURE_PHRASE } from "@/components/ui/tokens";
 import type { AgentRef, AttemptView, ChaosConfig, EngineEvent, NodeView, RunConfig, RunSummary } from "@/lib/types";
 
-export type Tab = "run" | "setup" | "night" | "evolution" | "report";
+export type Tab = "run" | "night" | "evolution" | "report";
 
 export interface AlertItem {
   id: number;
@@ -49,7 +49,6 @@ interface State {
   selectedNodeId: string | null;
   chaos: ChaosConfig | null;
   statsVersion: number;
-  poolsVersion: number;
   timelapse: TimelapseView | null;
 }
 
@@ -85,7 +84,6 @@ const initial: State = {
   selectedNodeId: null,
   chaos: null,
   statsVersion: 0,
-  poolsVersion: 0,
   timelapse: null,
 };
 
@@ -230,8 +228,6 @@ function applyEvent(state: State, e: EngineEvent): State {
     }
     case "stats_updated":
       return { ...state, statsVersion: state.statsVersion + 1 };
-    case "pool_updated":
-      return { ...state, poolsVersion: state.poolsVersion + 1 };
     case "timelapse": {
       const tl = state.timelapse && state.timelapse.id === e.data.id ? state.timelapse : null;
       const base: TimelapseView = tl ?? { id: e.data.id, running: true, ticks: [], options: { runs: e.data.total, chaosRate: 0, seed: 0, durationMs: 0 } };
@@ -298,7 +294,7 @@ export function AxolotlProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const syncFromHash = () => {
       const fromHash = (window.location.hash.slice(1) || "run") as Tab;
-      if (["run", "setup", "night", "evolution", "report"].includes(fromHash)) dispatch({ type: "tab", tab: fromHash });
+      if (["run", "night", "evolution", "report"].includes(fromHash)) dispatch({ type: "tab", tab: fromHash });
     };
     syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
@@ -356,13 +352,6 @@ export function AxolotlProvider({ children }: { children: ReactNode }) {
     const want = state.tab === "run" ? "" : `#${state.tab}`;
     if (window.location.hash !== want) window.history.replaceState(null, "", want || window.location.pathname);
   }, [state.tab]);
-
-  // Pools changed somewhere (setup, health checks): refresh the boot snapshot so every view sees them.
-  useEffect(() => {
-    if (!state.poolsVersion) return;
-    const t = setTimeout(() => void refreshBoot(), 300);
-    return () => clearTimeout(t);
-  }, [state.poolsVersion, refreshBoot]);
 
   const actions = useMemo<Actions>(
     () => ({

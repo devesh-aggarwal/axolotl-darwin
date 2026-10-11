@@ -1,4 +1,4 @@
-// Trust records in SQLite: every agent setup has seen (its listing), its trials, and the incidents
+// Trust records in SQLite: every agent Axolotl has found (its listing), its trials, and the incidents
 // runs recorded against it. Reports are computed on read, so they always reflect the latest runs.
 // This is the outcome data that can later be shared with users (and with Darwin's ranking).
 import { getDb, json } from "@/lib/db";
@@ -101,7 +101,7 @@ export function withTrust<T extends AgentCandidate>(candidates: T[], toolText?: 
   });
 }
 
-/** Every agent setup has seen, newest first, optionally for one capability. */
+/** Every agent Axolotl has found, newest first, optionally for one capability. */
 export function allTrustReports(capability?: Capability): TrustReport[] {
   const rows = getDb()
     .prepare(`SELECT listing_json FROM agent_listings ${capability ? "WHERE capability = ?" : ""} ORDER BY last_seen DESC`)

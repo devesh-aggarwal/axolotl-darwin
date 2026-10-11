@@ -23,6 +23,9 @@ export const env = {
   llmMaxOutputTokens: num("LLM_MAX_OUTPUT_TOKENS", 900),
   llmTimeoutMs: num("LLM_TIMEOUT_MS", 45_000),
 
+  /** Option B: your own agent's MCP address. It goes first; Darwin agents take over when it fails. Simulated when unset. */
+  yourAgentUrl: process.env.YOUR_AGENT_MCP_URL || "",
+
   dataDir: process.env.AXOLOTL_DATA_DIR || "data",
   /** Base URL this server is reachable at (used to build the local demo-site URL). */
   publicBaseUrl: process.env.AXOLOTL_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,

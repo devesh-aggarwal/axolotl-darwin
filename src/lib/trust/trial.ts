@@ -13,12 +13,12 @@ import { translateOutput } from "@/lib/translate";
 import { answerHijacks } from "@/lib/trust/signals";
 import { recordIncident, recordTrial } from "@/lib/trust/store";
 import { verifyOutput } from "@/lib/verify";
-import type { AgentNodeInput, AuditOutput, Capability, CrawlOutput, FailureType, PoolMember, TrialResult } from "@/lib/types";
+import type { AgentNodeInput, AuditOutput, Capability, CrawlOutput, FailureType, RoutedAgent, TrialResult } from "@/lib/types";
 
 /** Simulated agents run at this time scale during a trial, so it takes a second or two. */
 const MOCK_TIME_SCALE = 0.25;
 
-export type TrialAgent = Pick<PoolMember, "agentId" | "capabilityId" | "name" | "source" | "provider" | "searchId" | "argumentSchema" | "endpoint">;
+export type TrialAgent = Pick<RoutedAgent, "agentId" | "capabilityId" | "name" | "source" | "provider" | "searchId" | "argumentSchema" | "endpoint">;
 
 function templateFor(capability: Capability): NodeTemplate {
   const t = AGENT_TEMPLATES.find((x) => x.capability === capability);

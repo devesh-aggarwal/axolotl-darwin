@@ -63,8 +63,7 @@ async function main(): Promise<void> {
   const { MockDarwinClient } = await import("@/lib/darwin/mock");
   const runtime = await import("@/lib/engine/runtime");
   const { subscribe } = await import("@/lib/events");
-  const { getAllStats, getStatsMap } = await import("@/lib/engine/stats");
-  const { getPool, orderPool } = await import("@/lib/engine/pools");
+  const { getAllStats } = await import("@/lib/engine/stats");
   const timelapse = await import("@/lib/engine/timelapse");
   type TaskHandle = import("@/lib/darwin/types").TaskHandle;
 
@@ -79,6 +78,7 @@ async function main(): Promise<void> {
       maxPages: 2,
       client: "mock",
       simulatedBackups: false,
+      budgetCents: 0,
       chaos: { enabled: false, rate: 0, weights: { ...runtime.DEFAULT_CHAOS.weights } },
       llmMode: "mock",
       seed: 101,
@@ -169,10 +169,9 @@ async function main(): Promise<void> {
     expect("recall measured on the demo site", typeof run.stats?.recall === "number");
   }
 
-  // ---------- 2. failover via queued faults, in pool order ----------
+  // ---------- 2. failover via queued faults, in the order the router planned ----------
   {
     section = "failover";
-    const seoOrder = orderPool(getPool("seo", "mock")!, "seo", getStatsMap()).members.map((m) => m.agentId);
     const t = mk({ seed: 202 });
     const done = t.engine.execute();
     const rid = t.run.id;
@@ -182,11 +181,12 @@ async function main(): Promise<void> {
     expect("corrupt queued on links", t.engine.injectFault(`${rid}:links`, "corrupt"));
     const run = await done;
     const seo = t.attemptsOf("seo");
+    const seoOrder = (t.engine.nodes.get(`${rid}:seo`)?.route?.agents ?? []).map((c) => c.agent.agentId);
     const links = t.attemptsOf("links");
     expect("seo attempt 1 got the queued crash", seo[0]?.injectedFault === "error" && seo[0]?.outcome === "hard_failure" && seo[0]?.failureType === "error", JSON.stringify(seo[0]?.failureType));
     expect("seo recovered on a backup", t.node("seo")?.state === "passed" && seo.length >= 2 && (t.node("seo")?.swaps ?? 0) >= 1);
     expect(
-      "seo walked the pool in reliability order",
+      "seo walked the agents in the planned order",
       seo.every((a, i) => a.agent.agentId === seoOrder[i]),
       `${seo.map((a) => a.agent.agentId).join(" > ")} vs ${seoOrder.join(" > ")}`,
     );
@@ -234,16 +234,16 @@ async function main(): Promise<void> {
     section = "exhausted branch";
     const t = mk({ seed: 404 });
     const done = t.engine.execute();
-    for (let i = 0; i < 3; i++) t.engine.injectFault(`${t.run.id}:seo`, "error");
+    for (let i = 0; i < 6; i++) t.engine.injectFault(`${t.run.id}:seo`, "error");
     const run = await done;
     const merge = t.node("merge")!;
     const mergeOut = merge.output as { partialBranches: { nodeId: string }[] };
-    expect("seo failed after every agent", t.node("seo")?.state === "failed" && t.attemptsOf("seo").length === 3);
+    expect("seo failed after every agent", t.node("seo")?.state === "failed" && t.attemptsOf("seo").length === (t.node("seo")?.route?.agents.length ?? -1));
     expect("run is partial, not failed", run.status === "partial", run.status);
     expect("merge marked partial and lists seo", merge.state === "partial" && mergeOut.partialBranches.some((b) => b.nodeId === `${t.run.id}:seo`));
     expect("fix plan still produced", t.node("fixplan")?.state === "passed");
     expect("lost branch needs a human", run.stats?.humanInterventions === 1);
-    expect("alert says the branch stopped", t.events.some((e) => e.type === "alert" && e.level === "error" && /every pre-approved agent failed/.test(e.message)));
+    expect("alert says the branch stopped", t.events.some((e) => e.type === "alert" && e.level === "error" && /every agent found for this step failed/.test(e.message)));
     statsMatch(run.stats, [...t.engine.nodes.values()], t.engine.attempts);
   }
 
@@ -252,7 +252,7 @@ async function main(): Promise<void> {
     section = "crawl exhausted";
     const t = mk({ seed: 505 });
     const done = t.engine.execute();
-    for (let i = 0; i < 3; i++) t.engine.injectFault(`${t.run.id}:crawl`, "error");
+    for (let i = 0; i < 6; i++) t.engine.injectFault(`${t.run.id}:crawl`, "error");
     const run = await done;
     const placeholders = [...t.engine.nodes.values()].filter((n) => n.placeholder);
     expect("both fan-out placeholders failed", placeholders.length === 2 && placeholders.every((n) => n.state === "failed"));
@@ -434,7 +434,7 @@ async function main(): Promise<void> {
     section = "resume partial run";
     const chaosOff = { enabled: false, rate: 0, weights: runtime.DEFAULT_CHAOS.weights };
     const part = runtime.startRun({ siteUrl, maxPages: 2, timeScale: 0.03, seed: 911, chaos: chaosOff });
-    for (let i = 0; i < 3; i++) runtime.injectFault(part.id, `${part.id}:seo`, "error");
+    for (let i = 0; i < 6; i++) runtime.injectFault(part.id, `${part.id}:seo`, "error");
     expect("first pass ends partial", (await waitFor(() => finished(part.id, 1), 15_000)) && runtime.getRunRecord(part.id)!.run.status === "partial");
     const stalePrioritized = runtime.getRunRecord(part.id)!.nodes.find((n) => n.templateId === "prioritize")?.output as { issues: { category: string }[] };
     expect("first pass has no SEO findings", !stalePrioritized.issues.some((i) => i.category === "seo"));
@@ -453,7 +453,7 @@ async function main(): Promise<void> {
     // Resume after the crawl was lost: site audits that ran on the site root alone must rerun on the real pages.
     section = "resume after lost crawl";
     const lost = runtime.startRun({ siteUrl, maxPages: 2, timeScale: 0.03, seed: 912, chaos: chaosOff });
-    for (let i = 0; i < 3; i++) runtime.injectFault(lost.id, `${lost.id}:crawl`, "error");
+    for (let i = 0; i < 6; i++) runtime.injectFault(lost.id, `${lost.id}:crawl`, "error");
     expect("first pass ends partial", (await waitFor(() => finished(lost.id, 1), 15_000)) && runtime.getRunRecord(lost.id)!.run.status === "partial");
     expect("site audits passed on the fallback input", runtime.getRunRecord(lost.id)!.nodes.some((n) => n.templateId === "links" && n.state === "passed"));
     runtime.resumeRun(lost.id);
