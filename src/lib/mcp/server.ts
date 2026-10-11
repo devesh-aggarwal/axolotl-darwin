@@ -11,6 +11,7 @@ import { confirmOrder, orderFood, type DemoFault } from "@/lib/mcp/ordering";
 import { resolvePlace, stripFiller, type PlaceResolution } from "@/lib/mcp/places";
 import { creditLine, parseHostTools, planHostRoutes, verifyHostCart } from "@/lib/mcp/hostRoutes";
 import { planRecovery } from "@/lib/mcp/recover";
+import { scoreAddressAttempts, scoreDeliveryRoute } from "@/lib/mcp/scoring";
 
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const INSTRUCTIONS =
@@ -63,6 +64,8 @@ function resolveCached(query: string, addressHint?: string, near?: string): Prom
   const hit = placeCache.get(key);
   if (hit && Date.now() - hit.at < 10 * 60_000) return hit.value;
   const value = resolvePlace(query, { addressHint, near });
+  // Only fresh lookups count toward the map services' scores; cache hits ran nothing.
+  value.then((r) => scoreAddressAttempts(r.attempts), () => {});
   value.catch(() => placeCache.delete(key));
   placeCache.set(key, { at: Date.now(), value });
   if (placeCache.size > 200) placeCache.delete(placeCache.keys().next().value as string);
@@ -218,6 +221,7 @@ export const TOOLS: ToolDef[] = [
       const deliverTo = need(args, "deliver_to");
       const credit = creditLine(route, address.place, /^\s*\d+\s+\S/.test(deliverTo) ? null : `${stripFiller(deliverTo)} at ${address.place.address}${address.confirmation ? ` (${address.confirmation})` : ""}`);
       const check = verifyHostCart(need(args, "cart_text"), need(args, "item"), address.place, num(args.max_total_usd));
+      if (str(args.route_id)) scoreDeliveryRoute(route, check.verdict === "pass");
       const attempts: Attempt[] = [
         { step: "verify cart", agent: route, source: "public-api", outcome: check.verdict === "pass" ? "ok" : "rejected", reason: check.verdict === "pass" ? `right item, delivering to ${address.place.address}${check.found.totalUsd !== undefined ? `, $${check.found.totalUsd.toFixed(2)}` : ""}` : check.problems.join("; "), ms: 0 },
       ];

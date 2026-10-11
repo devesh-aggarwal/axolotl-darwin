@@ -2,7 +2,7 @@
 import { useRef } from "react";
 import { CATEGORY_LABEL, VERDICT } from "@/components/ui/tokens";
 import { useFlip } from "@/components/evolution/hooks";
-import { describeRow, scoreColor, type Board, type BoardRow } from "@/components/evolution/leaderboard";
+import { describeRow, scoreColor, sourceLabel, type Board, type BoardRow } from "@/components/evolution/leaderboard";
 import { ReliabilityBar, Sparkline, TickingScore } from "@/components/evolution/marks";
 
 export function CapabilityBoard({ board }: { board: Board }) {
@@ -34,7 +34,7 @@ export function CapabilityBoard({ board }: { board: Board }) {
 function Row({ row, rank }: { row: BoardRow; rank: number }) {
   const color = scoreColor(row.score);
   const verdict = row.verdict ? VERDICT[row.verdict] : null;
-  const kind = row.source === "darwin" ? "Darwin" : "Simulated";
+  const kind = sourceLabel(row);
 
   return (
     <li

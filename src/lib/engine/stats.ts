@@ -1,7 +1,7 @@
 // Reliability scoring (spec 7.5): per agent per capability, Beta-Bernoulli
 // (successes + 1) / (attempts + 2), latency as tiebreak.
 import { getDb, json } from "@/lib/db";
-import type { AgentRef, AgentStats, Capability, FailureType } from "@/lib/types";
+import type { AgentRef, AgentStats, FailureType, ScoredCapability } from "@/lib/types";
 
 export function betaScore(successes: number, attempts: number): number {
   return (successes + 1) / (attempts + 2);
@@ -22,7 +22,7 @@ interface StatsRow {
 function rowToStats(r: StatsRow): AgentStats {
   return {
     agentId: r.agent_id,
-    capability: r.capability as Capability,
+    capability: r.capability as ScoredCapability,
     name: r.name,
     source: r.source as AgentStats["source"],
     attempts: r.attempts,
@@ -37,7 +37,7 @@ function rowToStats(r: StatsRow): AgentStats {
 
 export interface AttemptOutcomeRecord {
   agent: AgentRef;
-  capability: Capability;
+  capability: ScoredCapability;
   success: boolean;
   failureType?: FailureType;
   latencyMs: number;
@@ -86,7 +86,7 @@ export function getStatsMap(): Map<string, AgentStats> {
 
 export interface ScoreHistory {
   agentId: string;
-  capability: Capability;
+  capability: ScoredCapability;
   points: { at: number; score: number; attempts: number }[];
 }
 
@@ -100,7 +100,7 @@ export function getScoreHistory(maxPoints = 40): ScoreHistory[] {
     const k = `${r.agent_id}|${r.capability}`;
     let h = by.get(k);
     if (!h) {
-      h = { agentId: r.agent_id, capability: r.capability as Capability, points: [{ at: r.at, score: 0.5, attempts: 0 }] };
+      h = { agentId: r.agent_id, capability: r.capability as ScoredCapability, points: [{ at: r.at, score: 0.5, attempts: 0 }] };
       by.set(k, h);
     }
     h.points.push({ at: r.at, score: r.score, attempts: r.attempts });

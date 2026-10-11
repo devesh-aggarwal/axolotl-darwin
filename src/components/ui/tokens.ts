@@ -84,6 +84,8 @@ export const CATEGORY_LABEL: Record<string, string> = {
   seo: "SEO",
   security: "Security",
   links: "Links",
+  address: "Address lookup",
+  delivery: "Delivery cart",
 };
 
 export function fmtMs(ms: number | undefined): string {

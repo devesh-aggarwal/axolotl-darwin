@@ -158,6 +158,14 @@ export function verifyHostCart(cartText: string, item: string, address: Place, m
   return { verdict: problems.length ? "fail" : "pass", problems, found: { item: itemOk, address: addressOk, totalUsd } };
 }
 
+/** A route id as a name for the rankings: "uber-eats-search-browser" -> "Uber Eats: plugin search, then browser". */
+export function routeName(routeId: string): string {
+  const p = PROVIDERS.find((pr) => routeId.startsWith(`${slug(pr.name)}-`));
+  if (!p) return routeId;
+  const how = routeId.endsWith("-plugin-cart") ? "plugin cart" : routeId.endsWith("-search-browser") ? "plugin search, then browser" : routeId.endsWith("-site") ? "website in browser" : routeId.slice(slug(p.name).length + 1);
+  return `${p.name}: ${how}`;
+}
+
 /** One line the host can show the person, so they can see what Axolotl did. */
 export function creditLine(routeId: string, address: Place, locatedFrom: string | null): string {
   const where = locatedFrom ? `located ${locatedFrom}` : `checked ${address.address} on the map`;

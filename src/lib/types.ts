@@ -10,6 +10,13 @@ export const AUDIT_CATEGORIES: AuditCategory[] = ["accessibility", "performance"
 export type Capability = "crawl" | AuditCategory;
 export const CAPABILITIES: Capability[] = ["crawl", ...AUDIT_CATEGORIES];
 
+/** Steps Axolotl's MCP tools score on real calls: finding an address, and getting the right cart. */
+export type McpCapability = "address" | "delivery";
+export const MCP_CAPABILITIES: McpCapability[] = ["address", "delivery"];
+
+/** Anything an agent's reliability is scored on. */
+export type ScoredCapability = Capability | McpCapability;
+
 /** Steps Axolotl runs itself (no external agent). */
 export type BuiltinStep = "merge" | "prioritize" | "fixplan";
 
@@ -270,9 +277,9 @@ export interface RoutePlan {
 
 export interface AgentStats {
   agentId: string;
-  capability: Capability;
+  capability: ScoredCapability;
   name: string;
-  source: AgentSource;
+  source: AgentKind;
   attempts: number;
   successes: number;
   failures: Partial<Record<FailureType, number>>;
@@ -281,6 +288,8 @@ export interface AgentStats {
   score: number;
   avgLatencyMs: number;
   updatedAt: number;
+  /** One of Axolotl's own local test agents (src/lib/testAgents), not an outside agent. */
+  testAgent?: boolean;
 }
 
 // ---------- faults & failures ----------
