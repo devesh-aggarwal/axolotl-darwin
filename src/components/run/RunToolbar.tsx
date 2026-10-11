@@ -4,7 +4,10 @@ import { useAxolotl } from "@/components/store";
 import { Button, Segmented, Toggle } from "@/components/ui/primitives";
 import { fmtCents } from "@/components/ui/tokens";
 import { SITE_CHECKS, parseRequest } from "@/lib/request";
-import type { AgentSource } from "@/lib/types";
+import type { AgentSource, RunConfig } from "@/lib/types";
+
+/** Stretches simulated agent delays (and their timeouts) so a run takes about 30–40 s, closer to real agents. */
+const DEMO_PACE = 1.9;
 
 export function RunToolbar() {
   const { state, actions } = useAxolotl();
@@ -51,7 +54,9 @@ export function RunToolbar() {
   const start = async () => {
     if (parsed.kind !== "audit") return;
     setStarting(true);
-    // Chaos comes from the server's current setting (the toggle updates it immediately).
+    // Chaos is always on from this screen, so every run shows agents failing and being replaced.
+    // The server setting is switched on too, so a resumed run keeps breaking agents the same way.
+    if (chaos && !chaos.enabled) await actions.setChaos({ enabled: true });
     await actions.startRun({
       siteUrl: parsed.siteUrl,
       request: request.trim(),
@@ -60,6 +65,8 @@ export function RunToolbar() {
       llmMode: judge,
       simulatedBackups,
       budgetCents,
+      chaos: { ...(chaos ?? { rate: 0.15, weights: {} }), enabled: true } as RunConfig["chaos"],
+      timeScale: DEMO_PACE,
     });
     setStarting(false);
   };
@@ -83,19 +90,6 @@ export function RunToolbar() {
         />
       </form>
       <SourceBadge client={run?.config.client ?? client} simulatedBackups={run ? run.config.simulatedBackups : simulatedBackups} />
-      {chaos && (
-        <Toggle
-          ariaLabel="Chaos mode"
-          checked={chaos.enabled}
-          onChange={(v) => actions.setChaos({ enabled: v })}
-          label={
-            <span title="Randomly break agents while the run is going">
-              Chaos
-              {chaos.enabled && <span className="ml-1 tabular text-muted">{Math.round(chaos.rate * 100)}%</span>}
-            </span>
-          }
-        />
-      )}
       <div className="relative" ref={settingsRef}>
         <Button tone="ghost" onClick={() => setSettingsOpen((v) => !v)} aria-expanded={settingsOpen}>
           Settings
