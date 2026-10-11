@@ -7,7 +7,7 @@
 //   - Order within a tier: proven reliability first, then the trust check, then Darwin's rank.
 import { productMode } from "@/config/mode";
 import type { NodeTemplate } from "@/config/workflow";
-import { YOUR_AGENTS } from "@/lib/darwin/mockCatalog";
+import { YOUR_AGENTS, standInFor } from "@/lib/darwin/mockCatalog";
 import { pinnedAgents } from "@/lib/darwin/providerEndpoints";
 import type { SearchResult } from "@/lib/darwin/types";
 import { actConfigured, getDarwinClient } from "@/lib/engine/clients";
@@ -110,7 +110,10 @@ export async function discover(o: DiscoverOptions): Promise<Discovery> {
     }
   }
   if (real) out.searched.push("Known real agents");
+  let standIns = 0;
   for (const source of sources) {
+    // Stand-ins for the Darwin agents found already cover the simulated backups, under real names.
+    if (source === "mock" && standIns > 0) continue;
     const label = source === "darwin" ? "Darwin Search" : "Simulated catalog";
     let result: SearchResult;
     try {
@@ -125,14 +128,27 @@ export async function discover(o: DiscoverOptions): Promise<Discovery> {
       if (seen.has(c.agentId)) continue;
       seen.add(c.agentId);
       const v = vet(c, source, o);
-      if ("skip" in v) out.skipped.push({ agent: refOf(c), reason: v.skip });
-      else out.vetted.push({ ...v, tier: source === "mock" && (o.client === "darwin" || real > 0) ? "simulated" : v.tier });
+      if ("skip" in v) {
+        out.skipped.push({ agent: refOf(c), reason: v.skip });
+        // Found on Darwin but out of reach: a simulated stand-in runs under its name, so the step and its
+        // rankings still move. Never for an agent that failed its safety check.
+        if (source === "darwin" && o.client === "darwin" && o.simulatedBackups && !v.unsafe) {
+          const stand = standInFor(c);
+          out.vetted.push({
+            agent: { agentId: stand.agentId, capabilityId: stand.capabilityId, name: stand.name, provider: stand.provider, source: "mock", capability: c.capability },
+            tier: "simulated",
+            rank: c.rank,
+            trustScore: 50,
+          });
+          standIns++;
+        }
+      } else out.vetted.push({ ...v, tier: source === "mock" && (o.client === "darwin" || real > 0) ? "simulated" : v.tier });
     }
   }
   return out;
 }
 
-function vet(c: AgentCandidate, source: AgentSource, o: DiscoverOptions): Omit<VettedAgent, "tier"> & { tier: RouteTier } | { skip: string } {
+function vet(c: AgentCandidate, source: AgentSource, o: DiscoverOptions): Omit<VettedAgent, "tier"> & { tier: RouteTier } | { skip: string; unsafe?: boolean } {
   const listing = toListing(c);
   if (o.useHistory) rememberListing(listing);
   const report = assessTrust({
@@ -141,7 +157,7 @@ function vet(c: AgentCandidate, source: AgentSource, o: DiscoverOptions): Omit<V
     incidents: o.useHistory ? incidentCounts(c.agentId, c.capability) : NO_INCIDENTS,
     trial: o.useHistory ? latestTrial(c.agentId, c.capability) : undefined,
   });
-  if (report.verdict === "avoid") return { skip: `Failed its safety check: ${report.safety.summary}` };
+  if (report.verdict === "avoid") return { skip: `Failed its safety check: ${report.safety.summary}`, unsafe: true };
 
   const t = c.terms;
   if (t?.auth === "required" || hasSetup(c.requiredSetup)) return { skip: "Needs a sign-in with its provider, and nobody is around to sign in" };

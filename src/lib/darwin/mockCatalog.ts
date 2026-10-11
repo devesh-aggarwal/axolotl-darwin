@@ -1,6 +1,7 @@
 // Mock agent catalog: five fictional agents per capability with distinct behavior profiles.
 // Per capability the catalog order is fixed: [0] popular but flaky (top Darwin rank, default
 // primary), [1] and [2] steady (default backups), [3] mediocre, [4] down (fails health checks).
+import { hashString } from "@/lib/rng";
 import { CAPABILITIES, type Capability, type CorruptionKind, type ListingTerms } from "@/lib/types";
 
 export type MockFailureKind = "error" | "timeout" | "stall" | "auth_block" | "bad_output";
@@ -501,13 +502,49 @@ export const YOUR_AGENTS: MockAgentProfile[] = CAPABILITIES.map((capability) => 
 
 const BY_ID = new Map([...MOCK_AGENTS, ...YOUR_AGENTS].map((a) => [a.agentId, a]));
 
+/**
+ * Simulated stand-ins for Darwin agents that search found but nobody can call yet (no Act access, a
+ * sign-in, a price). Each runs under the Darwin agent's own name, marked "(simulated)", with a fixed
+ * behaviour picked from its Darwin id, so its score is consistent from run to run. Kept on globalThis
+ * so a hot reload doesn't orphan stand-ins a live run is using.
+ */
+const STAND_IN_ROLES: Role[] = ["steady", "steady", "mediocre", "flaky"];
+const gStand = globalThis as unknown as { __axolotlStandIns?: Map<string, MockAgentProfile> };
+const standIns = () => (gStand.__axolotlStandIns ??= new Map());
+
+export const STAND_IN_PREFIX = "standin:";
+
+export function standInFor(darwin: { agentId: string; name: string; provider?: string; description?: string; capability: Capability }): MockAgentProfile {
+  const agentId = `${STAND_IN_PREFIX}${darwin.capability}:${darwin.agentId}`;
+  const known = standIns().get(agentId);
+  if (known) return known;
+  const h = hashString(darwin.agentId);
+  const profile: MockAgentProfile = {
+    ...buildProfile(darwin.capability, {
+      slug: `standin-${h.toString(36)}`,
+      name: `${darwin.name} (simulated)`,
+      provider: darwin.provider ?? "Darwin",
+      description: darwin.description ?? "",
+      role: STAND_IN_ROLES[h % STAND_IN_ROLES.length],
+      rank: 50 + (h % 50),
+      latency: 1600 + (h % 1800),
+      // Free and unattended: the stand-in is for agents Axolotl can't reach, not for their terms.
+      terms: { auth: "not_required", payment: "not_required" },
+    }),
+    agentId,
+    capabilityId: `${STAND_IN_PREFIX}cap:${darwin.capability}:${darwin.agentId}`,
+  };
+  standIns().set(agentId, profile);
+  return profile;
+}
+
 /** The capability's five agents in catalog order (index 0 = default primary). */
 export function mockAgentsFor(capability: Capability): MockAgentProfile[] {
   return MOCK_AGENTS.filter((a) => a.capability === capability);
 }
 
 export function getMockAgent(agentId: string): MockAgentProfile | undefined {
-  return BY_ID.get(agentId);
+  return BY_ID.get(agentId) ?? standIns().get(agentId);
 }
 
 /**
