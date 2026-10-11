@@ -1,0 +1,270 @@
+@import "tailwindcss";
+
+/* Light, calm palette. Pink (--regrow) is the one accent: recovery and the brand.
+   State colors carry meaning only. */
+:root {
+  --bg: #f7f7f5;
+  --bg-raised: #fbfbfa;
+  --panel: #ffffff;
+  --panel-2: #f3f3f0;
+  --line: #e8e7e3;
+  --line-strong: #d6d4ce;
+  --ink: #1d1d1b;
+  --ink-2: #45453f;
+  --muted: #76756e;
+  --faint: #a3a29b;
+
+  --s-idle: #c4c2bb;
+  --s-queued: #a9a79f;
+  --s-running: #2f6fed;
+  --s-verifying: #cc8a00;
+  --s-passed: #1a9a62;
+  --s-failed: #e04450;
+  --s-swapping: #e2559b;
+  --s-partial: #df7a2c;
+
+  --regrow: #e2559b;
+  --regrow-soft: rgba(226, 85, 155, 0.09);
+  --focus: #2f6fed;
+  --shadow: 0 1px 2px rgba(29, 29, 27, 0.05), 0 2px 8px rgba(29, 29, 27, 0.04);
+  --shadow-panel: -8px 0 24px rgba(29, 29, 27, 0.08);
+  --canvas-dot: #dddcd6;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-raised: var(--bg-raised);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-running: var(--s-running);
+  --color-verifying: var(--s-verifying);
+  --color-passed: var(--s-passed);
+  --color-failed: var(--s-failed);
+  --color-swapping: var(--s-swapping);
+  --color-partial: var(--s-partial);
+  --color-regrow: var(--regrow);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jbmono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+::selection {
+  background: rgba(47, 111, 237, 0.18);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+/* ---------- motion ---------- */
+
+@keyframes axl-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--state) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes axl-flash {
+  0%,
+  100% {
+    background-color: var(--panel);
+  }
+  25% {
+    background-color: color-mix(in srgb, var(--s-failed) 18%, var(--panel));
+  }
+  60% {
+    background-color: color-mix(in srgb, var(--s-failed) 8%, var(--panel));
+  }
+}
+
+@keyframes axl-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(1px);
+  }
+}
+
+/* A new agent grows in from the node's spine, the way a limb regrows. */
+@keyframes axl-regrow {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    color: var(--regrow);
+  }
+  35% {
+    clip-path: inset(0 0 0 0);
+    color: var(--regrow);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes axl-regrow-glow {
+  0% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--regrow) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+@keyframes axl-scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+@keyframes axl-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@keyframes axl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes axl-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.anim-pulse {
+  animation: axl-pulse 1.6s ease-out infinite;
+}
+.anim-flash {
+  animation:
+    axl-flash 0.9s ease-out 1,
+    axl-shake 0.35s ease-in-out 1;
+}
+.anim-regrow {
+  animation: axl-regrow 2.4s cubic-bezier(0.2, 0.7, 0.1, 1) 1 both;
+}
+.anim-regrow-glow {
+  animation: axl-regrow-glow 1.3s ease-out 1;
+}
+.anim-rise {
+  animation: axl-rise 0.25s ease-out both;
+}
+.anim-blink {
+  animation: axl-blink 1.1s steps(2, start) infinite;
+}
+
+.scanbar {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 2px;
+  overflow: hidden;
+}
+.scanbar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 38%;
+  background: linear-gradient(90deg, transparent, var(--state), transparent);
+  animation: axl-scan 1.3s linear infinite;
+}
+
+/* ---------- React Flow ---------- */
+
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke: var(--line-strong);
+  --xy-edge-stroke-width: 1.5;
+  --xy-controls-button-background-color: var(--panel);
+  --xy-controls-button-background-color-hover: var(--panel-2);
+  --xy-controls-button-color: var(--ink-2);
+  --xy-controls-button-border-color: var(--line);
+}
+.react-flow__attribution {
+  background: transparent !important;
+  opacity: 0.5;
+}
+.react-flow__attribution a {
+  color: var(--faint) !important;
+}
+.react-flow__controls {
+  box-shadow: var(--shadow) !important;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+.react-flow__node {
+  cursor: pointer;
+}
+.react-flow__edge.flowing path.react-flow__edge-path {
+  stroke-dasharray: 6 6;
+  animation: axl-dash 0.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

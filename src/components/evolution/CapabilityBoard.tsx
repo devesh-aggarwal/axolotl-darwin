@@ -1,0 +1,75 @@
+"use client";
+import { useRef } from "react";
+import { CATEGORY_LABEL } from "@/components/ui/tokens";
+import { useFlip, useOnsetAnimation } from "@/components/evolution/hooks";
+import { describeRow, scoreColor, type Board, type BoardRow } from "@/components/evolution/leaderboard";
+import { ReliabilityBar, Sparkline, TickingScore } from "@/components/evolution/marks";
+
+export function CapabilityBoard({ board }: { board: Board }) {
+  const listRef = useRef<HTMLOListElement>(null);
+  useFlip(listRef, board.rows.map((r) => r.agentId).join("|"));
+  const label = CATEGORY_LABEL[board.capability] ?? board.capability;
+
+  return (
+    <section className="card flex min-w-0 flex-col" aria-label={`${label} leaderboard`}>
+      <header className="flex items-baseline justify-between gap-3 px-4 pb-1.5 pt-3.5">
+        <h2 className="text-[14px] font-semibold text-ink">{label}</h2>
+        <span className="tabular text-[12px] text-muted">
+          {board.attempts ? `${board.attempts.toLocaleString()} attempts` : "No attempts yet"}
+        </span>
+      </header>
+      {board.rows.length ? (
+        <ol ref={listRef} className="relative px-2 pb-2">
+          {board.rows.map((r, i) => (
+            <Row key={r.agentId} row={r} rank={i + 1} />
+          ))}
+        </ol>
+      ) : (
+        <p className="px-4 pb-4 text-[12.5px] text-muted">No agents in this pool yet.</p>
+      )}
+    </section>
+  );
+}
+
+function Row({ row, rank }: { row: BoardRow; rank: number }) {
+  const rowRef = useRef<HTMLLIElement>(null);
+  const noteRef = useRef<HTMLSpanElement>(null);
+  useOnsetAnimation(rowRef, row.promoted, "anim-regrow-glow");
+  useOnsetAnimation(noteRef, row.promoted, "anim-regrow");
+  const color = scoreColor(row.score);
+  const role = row.role === "primary" ? "Primary" : row.role === "backup" ? "Backup" : "Not in a pool";
+
+  return (
+    <li
+      ref={rowRef}
+      data-flip={row.agentId}
+      title={describeRow(row)}
+      className={`relative grid grid-cols-[16px_minmax(0,1fr)_48px_64px] items-center gap-x-3 rounded-[6px] px-2 py-2.5 transition-colors ${
+        row.promoted ? "bg-[color-mix(in_srgb,var(--regrow)_7%,var(--panel))]" : "bg-panel hover:bg-panel-2"
+      }`}
+    >
+      {row.promoted && <span className="absolute inset-y-2 left-0 w-[2px] rounded-full bg-regrow" aria-hidden />}
+      <span className={`tabular text-right text-[12px] ${rank === 1 && row.attempts ? "text-ink" : "text-muted"}`}>{rank}</span>
+      <div className="min-w-0">
+        <div className="line-clamp-2 break-words text-[13px] leading-snug text-ink">{row.name}</div>
+        <div className="mt-0.5 text-[11.5px] text-muted">
+          {role}
+          {row.promoted && (
+            <>
+              {" · "}
+              <span ref={noteRef} className="inline-block font-medium text-regrow">
+                Now tried first
+              </span>
+            </>
+          )}
+          {row.skipReason && <span className="text-faint"> · {row.skipReason}</span>}
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-1.5">
+        <TickingScore value={row.score} />
+        <ReliabilityBar value={row.score} color={color} width={48} />
+      </div>
+      <Sparkline points={row.history} color={color} width={64} height={28} />
+    </li>
+  );
+}

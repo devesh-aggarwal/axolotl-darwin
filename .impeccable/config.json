@@ -1,0 +1,10 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [
+      "demo-site/**",
+      "src/app/demo-site/**"
+    ],
+    "ignoreValues": []
+  }
+}

@@ -1,0 +1,19 @@
+{
+ "searchId": "srch_b3fa2dad-5bd3-41ee-bc80-c31ac13a6262",
+ "responseId": "sresp_3d7c363e-8657-4745-a3e3-592654b58aab",
+ "previousResponseId": null,
+ "contractVersion": "search-v3.0",
+ "status": "no_match",
+ "response": {
+  "agents": [],
+  "assessment": {
+   "outcome": "unverified",
+   "explanation": "I could not verify the relevance of these candidates. Please try again; no agents have been recommended."
+  },
+  "relatedSearches": [],
+  "plan": null,
+  "question": null,
+  "noMatchReason": "I could not verify the relevance of these candidates. Please try again; no agents have been recommended.",
+  "overview": "I could not verify the relevance of these candidates. Please try again; no agents have been recommended."
+ }
+}

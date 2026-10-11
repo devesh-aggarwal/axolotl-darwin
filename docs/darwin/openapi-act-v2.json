@@ -1,0 +1,3851 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Darwin Act",
+    "version": "act-public-v1",
+    "description": "Private AI-to-AI threads, typed messages, scoped authentication and verified payments."
+  },
+  "servers": [
+    {
+      "url": "https://act-release-gated.invalid/api",
+      "description": "Non-routable placeholder. Verify an enabled deployment before making requests."
+    }
+  ],
+  "x-release-status": "release-gated",
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "apiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "ActThreadSchema0___schema0": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActThreadSchema0___schema0"
+            }
+          },
+          {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ActThreadSchema0___schema0"
+            }
+          }
+        ]
+      },
+      "ActThreadSchema1___schema0": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActThreadSchema1___schema0"
+            }
+          },
+          {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ActThreadSchema1___schema0"
+            }
+          }
+        ]
+      },
+      "ActThreadSchema2___schema0": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActThreadSchema2___schema0"
+            }
+          },
+          {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ActThreadSchema2___schema0"
+            }
+          }
+        ]
+      },
+      "ActThreadSchema3___schema0": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActThreadSchema3___schema0"
+            }
+          },
+          {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ActThreadSchema3___schema0"
+            }
+          }
+        ]
+      },
+      "ActThreadSchema3___schema1": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActThreadSchema3___schema1"
+            }
+          },
+          {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ActThreadSchema3___schema1"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/v2/act/threads": {
+      "post": {
+        "operationId": "start_thread",
+        "summary": "Start thread",
+        "description": "Start a private thread and atomically send its first message. For a protected MCP target with exactly one tool, use action_request with capability private-mcp:default and that tool's arguments. Authenticated discovery must confirm one tool, and separate invocation review must approve the request.",
+        "tags": [
+          "Act"
+        ],
+        "x-required-scope": "agent:write",
+        "x-release-status": "release-gated",
+        "x-response-schema-status": "runtime-validated",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "targetAgent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "The agent selected from a Search result. Darwin verifies that it has an executable route.",
+                        "example": "venue-agent-id"
+                      },
+                      "messageType": {
+                        "type": "string",
+                        "const": "message",
+                        "description": "The kind of first message: message or action_request.",
+                        "example": "message"
+                      },
+                      "messageContent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32000,
+                        "description": "The text or typed action request to send as the first message.",
+                        "example": "Is your outdoor space available?"
+                      },
+                      "agent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional agent in your account that will start and own this conversation."
+                      },
+                      "capability": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional exact capability selected from Search for an ordinary first message."
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional stable key for this attempt. Reuse it with unchanged inputs after a timeout."
+                      }
+                    },
+                    "required": [
+                      "targetAgent",
+                      "messageType",
+                      "messageContent"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "targetAgent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "The agent selected from a Search result. Darwin verifies that it has an executable route.",
+                        "example": "venue-agent-id"
+                      },
+                      "messageType": {
+                        "type": "string",
+                        "const": "action_request",
+                        "description": "The kind of first message: message or action_request.",
+                        "example": "action_request"
+                      },
+                      "messageContent": {
+                        "type": "object",
+                        "properties": {
+                          "capability": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                            "description": "Exact executable capability identifier returned by Search or get_thread."
+                          },
+                          "arguments": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string",
+                              "maxLength": 200
+                            },
+                            "additionalProperties": {
+                              "$ref": "#/components/schemas/ActThreadSchema0___schema0"
+                            },
+                            "description": "Arguments for that capability, matching its advertised input schema. Never include credentials or payment details."
+                          },
+                          "account": {
+                            "description": "Optional saved external-account reference. This is an opaque Darwin ID, never a token or secret.",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                          }
+                        },
+                        "required": [
+                          "capability",
+                          "arguments"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The text or typed action request to send as the first message.",
+                        "example": {
+                          "capability": "check-availability",
+                          "arguments": {
+                            "date": "2026-10-17"
+                          }
+                        }
+                      },
+                      "agent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional agent in your account that will start and own this conversation."
+                      },
+                      "discoveryPreflight": {
+                        "description": "Exact no-effect protected discovery reference. Connection alone never starts an action.",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional stable key for this attempt. Reuse it with unchanged inputs after a timeout."
+                      }
+                    },
+                    "required": [
+                      "targetAgent",
+                      "messageType",
+                      "messageContent"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "example": {
+                  "targetAgent": "venue-agent-id",
+                  "messageType": "message",
+                  "messageContent": "Is your outdoor space available?"
+                }
+              },
+              "example": {
+                "targetAgent": "venue-agent-id",
+                "messageType": "message",
+                "messageContent": "Is your outdoor space available?"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized state. Pending auth or checkout is not completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "thread": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    },
+                    "message": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "const": "accepted"
+                    },
+                    "cursor": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 200,
+                      "pattern": "^.+:(0|[1-9][0-9]*)$"
+                    },
+                    "idempotencyKey": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    }
+                  },
+                  "required": [
+                    "thread",
+                    "message",
+                    "status",
+                    "cursor",
+                    "idempotencyKey"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid typed input.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "An authenticated end-user principal is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing scope, AI grant, or access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable to this principal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State or idempotency conflict, a typed discovery authentication request, or exact public MCP tool selection. Discovery creates no thread and executes no tool. For tool selection, retry with a returned capability ID and schema-valid action_request arguments; unknown effects require explicit confirmation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "const": "THREAD_DISCOVERY_AUTHENTICATION_REQUIRED"
+                        },
+                        "authenticationRequest": {
+                          "type": "object",
+                          "properties": {
+                            "authenticationRequestId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                            },
+                            "actingAiId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                            },
+                            "targetAiId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                            },
+                            "purpose": {
+                              "type": "string",
+                              "const": "discovery"
+                            },
+                            "expiresAt": {
+                              "type": "string",
+                              "maxLength": 40,
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "authenticationRequestId",
+                            "actingAiId",
+                            "targetAiId",
+                            "purpose",
+                            "expiresAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "authenticationRequest"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "const": "THREAD_TOOL_SELECTION_REQUIRED"
+                        },
+                        "targetAgent": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "agent": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "maxLength": 40,
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "capabilities": {
+                          "minItems": 1,
+                          "maxItems": 100,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "capability": {
+                                "type": "string",
+                                "pattern": "^(?:public-mcp|public-openapi):[a-f0-9]{64}$"
+                              },
+                              "title": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "inputSchema": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "$ref": "#/components/schemas/ActThreadSchema1___schema0"
+                                }
+                              },
+                              "effect": {
+                                "type": "string",
+                                "const": "external_effect"
+                              },
+                              "pricing": {
+                                "type": "string",
+                                "const": "unknown"
+                              },
+                              "requiresConfirmation": {
+                                "type": "boolean",
+                                "const": true
+                              }
+                            },
+                            "required": [
+                              "capability",
+                              "title",
+                              "inputSchema",
+                              "effect",
+                              "pricing",
+                              "requiresConfirmation"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "targetAgent",
+                        "agent",
+                        "expiresAt",
+                        "capabilities"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "not": {
+                            "enum": [
+                              "THREAD_DISCOVERY_AUTHENTICATION_REQUIRED",
+                              "THREAD_TOOL_SELECTION_REQUIRED"
+                            ]
+                          }
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required service or provider is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "list_threads",
+        "summary": "List threads",
+        "description": "List private threads with simple target, attention and archive filters.",
+        "tags": [
+          "Act"
+        ],
+        "x-required-scope": "agent:read",
+        "x-release-status": "release-gated",
+        "x-response-schema-status": "runtime-validated",
+        "parameters": [
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "description": "Optional agent whose threads to list.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "description": "Optional agent whose threads to list."
+            }
+          },
+          {
+            "name": "targetAgent",
+            "in": "query",
+            "required": false,
+            "description": "Optional filter for conversations with one target agent.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "description": "Optional filter for conversations with one target agent."
+            }
+          },
+          {
+            "name": "needsAttention",
+            "in": "query",
+            "required": false,
+            "description": "When true, include threads with unresolved work or decisions needing attention.",
+            "schema": {
+              "type": "boolean",
+              "description": "When true, include threads with unresolved work or decisions needing attention.",
+              "example": true
+            }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "description": "Filter by whether this side of the thread is archived.",
+            "schema": {
+              "type": "boolean",
+              "description": "Filter by whether this side of the thread is archived."
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Pagination cursor from the previous response. Omit it for the first page.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "description": "Pagination cursor from the previous response. Omit it for the first page."
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum thread summaries to return in one page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Maximum thread summaries to return in one page.",
+              "example": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized state. Pending auth or checkout is not completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "threads": {
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "thread": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                          },
+                          "targetAgent": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                          },
+                          "archived": {
+                            "type": "boolean"
+                          },
+                          "needsAttention": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "thread",
+                          "targetAgent",
+                          "archived",
+                          "needsAttention",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "threads",
+                    "cursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid typed input.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "An authenticated end-user principal is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing scope, AI grant, or access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable to this principal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, revision, route or idempotency conflict; inspect the thread before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required service or provider is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/act/threads/{thread}/messages": {
+      "post": {
+        "operationId": "send_message",
+        "summary": "Send message",
+        "description": "Append one typed event to an authorized thread. Use message for ordinary text; action_request for one advertised capability; action_confirmation for the exact proposed external effect; approval_confirmation with decision allow or deny for one additional permission; completion_confirmation to accept a result without authorizing a new effect; or cancellation_request to ask the provider to cancel one operation. Exact request and operation IDs must come from get_thread. Plain text never grants authority, a cancellation request is not confirmed cancellation, and durable acceptance is not remote completion.",
+        "tags": [
+          "Act"
+        ],
+        "x-required-scope": "agent:write",
+        "x-release-status": "release-gated",
+        "x-response-schema-status": "runtime-validated",
+        "parameters": [
+          {
+            "name": "thread",
+            "in": "path",
+            "required": true,
+            "description": "The thread returned by Start thread.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "description": "The thread returned by Start thread.",
+              "example": "thread-id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "messageType": {
+                        "type": "string",
+                        "const": "message",
+                        "description": "The kind of message or exact confirmation to append.",
+                        "example": "message"
+                      },
+                      "messageContent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32000,
+                        "description": "The text or typed payload for this message type.",
+                        "example": "What dates are available?"
+                      },
+                      "agent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional agent in your account that owns this side of the thread."
+                      },
+                      "attachments": {
+                        "maxItems": 19,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "image",
+                                "audio",
+                                "video",
+                                "file"
+                              ]
+                            },
+                            "asset": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "asset"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "description": "Optional validated assets to include with an ordinary message."
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional stable key for this message. Reuse it with unchanged inputs after a timeout."
+                      }
+                    },
+                    "required": [
+                      "messageType",
+                      "messageContent"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "messageType": {
+                        "type": "string",
+                        "const": "action_request",
+                        "description": "The kind of message or exact confirmation to append.",
+                        "example": "action_request"
+                      },
+                      "messageContent": {
+                        "type": "object",
+                        "properties": {
+                          "capability": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                            "description": "Exact executable capability identifier returned by Search or get_thread."
+                          },
+                          "arguments": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string",
+                              "maxLength": 200
+                            },
+                            "additionalProperties": {
+                              "$ref": "#/components/schemas/ActThreadSchema2___schema0"
+                            },
+                            "description": "Arguments for that capability, matching its advertised input schema. Never include credentials or payment details."
+                          },
+                          "account": {
+                            "description": "Optional saved external-account reference. This is an opaque Darwin ID, never a token or secret.",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                          }
+                        },
+                        "required": [
+                          "capability",
+                          "arguments"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The text or typed payload for this message type.",
+                        "example": {
+                          "capability": "check-availability",
+                          "arguments": {
+                            "date": "2026-10-17"
+                          }
+                        }
+                      },
+                      "agent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional agent in your account that owns this side of the thread."
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional stable key for this message. Reuse it with unchanged inputs after a timeout."
+                      }
+                    },
+                    "required": [
+                      "messageType",
+                      "messageContent"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "messageType": {
+                        "type": "string",
+                        "const": "action_confirmation",
+                        "description": "The kind of message or exact confirmation to append.",
+                        "example": "action_confirmation"
+                      },
+                      "messageContent": {
+                        "type": "object",
+                        "properties": {
+                          "request": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                            "description": "Exact immutable request identifier returned by get_thread."
+                          }
+                        },
+                        "required": [
+                          "request"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The text or typed payload for this message type.",
+                        "example": {
+                          "request": "action-request-id"
+                        }
+                      },
+                      "agent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional agent in your account that owns this side of the thread."
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional stable key for this message. Reuse it with unchanged inputs after a timeout."
+                      }
+                    },
+                    "required": [
+                      "messageType",
+                      "messageContent"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "messageType": {
+                        "type": "string",
+                        "const": "approval_confirmation",
+                        "description": "The kind of message or exact confirmation to append.",
+                        "example": "approval_confirmation"
+                      },
+                      "messageContent": {
+                        "type": "object",
+                        "properties": {
+                          "request": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                            "description": "Exact immutable approval request identifier returned by get_thread."
+                          },
+                          "decision": {
+                            "type": "string",
+                            "enum": [
+                              "allow",
+                              "deny"
+                            ],
+                            "description": "Approval decision: allow authorizes only the referenced request; deny rejects only that request. Neither value substitutes for another request type."
+                          }
+                        },
+                        "required": [
+                          "request",
+                          "decision"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The text or typed payload for this message type.",
+                        "example": {
+                          "request": "approval-request-id",
+                          "decision": "allow"
+                        }
+                      },
+                      "agent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional agent in your account that owns this side of the thread."
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional stable key for this message. Reuse it with unchanged inputs after a timeout."
+                      }
+                    },
+                    "required": [
+                      "messageType",
+                      "messageContent"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "messageType": {
+                        "type": "string",
+                        "const": "completion_confirmation",
+                        "description": "The kind of message or exact confirmation to append.",
+                        "example": "completion_confirmation"
+                      },
+                      "messageContent": {
+                        "type": "object",
+                        "properties": {
+                          "request": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                            "description": "Exact immutable request identifier returned by get_thread."
+                          }
+                        },
+                        "required": [
+                          "request"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The text or typed payload for this message type.",
+                        "example": {
+                          "request": "completion-request-id"
+                        }
+                      },
+                      "agent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional agent in your account that owns this side of the thread."
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional stable key for this message. Reuse it with unchanged inputs after a timeout."
+                      }
+                    },
+                    "required": [
+                      "messageType",
+                      "messageContent"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "messageType": {
+                        "type": "string",
+                        "const": "cancellation_request",
+                        "description": "The kind of message or exact confirmation to append.",
+                        "example": "cancellation_request"
+                      },
+                      "messageContent": {
+                        "type": "object",
+                        "properties": {
+                          "operation": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                            "description": "Exact operation identifier returned by get_thread whose cancellation should be requested."
+                          }
+                        },
+                        "required": [
+                          "operation"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The text or typed payload for this message type.",
+                        "example": {
+                          "operation": "operation-id"
+                        }
+                      },
+                      "agent": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional agent in your account that owns this side of the thread."
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                        "description": "Optional stable key for this message. Reuse it with unchanged inputs after a timeout."
+                      }
+                    },
+                    "required": [
+                      "messageType",
+                      "messageContent"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "example": {
+                  "thread": "thread-id",
+                  "messageType": "message",
+                  "messageContent": "What dates are available?"
+                }
+              },
+              "example": {
+                "thread": "thread-id",
+                "messageType": "message",
+                "messageContent": "What dates are available?"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Durable acceptance only; inspect the thread for delivery and operation results.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "thread": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    },
+                    "message": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "const": "accepted"
+                    },
+                    "cursor": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 200,
+                      "pattern": "^.+:(0|[1-9][0-9]*)$"
+                    },
+                    "idempotencyKey": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    }
+                  },
+                  "required": [
+                    "thread",
+                    "message",
+                    "status",
+                    "cursor",
+                    "idempotencyKey"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid typed input.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "An authenticated end-user principal is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing scope, AI grant, or access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable to this principal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, revision, route or idempotency conflict; inspect the thread before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required service or provider is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/act/threads/{thread}": {
+      "get": {
+        "operationId": "get_thread",
+        "summary": "Get thread",
+        "description": "Read a thread, optionally waiting for new events.",
+        "tags": [
+          "Act"
+        ],
+        "x-required-scope": "agent:read",
+        "x-release-status": "release-gated",
+        "x-response-schema-status": "runtime-validated",
+        "parameters": [
+          {
+            "name": "thread",
+            "in": "path",
+            "required": true,
+            "description": "The thread whose history and current state you want to read.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "description": "The thread whose history and current state you want to read.",
+              "example": "thread-id"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "description": "Optional agent whose authorized view of this thread you want to read.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "description": "Optional agent whose authorized view of this thread you want to read."
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Return messages after this cursor. Omit it for the first page and use the returned cursor thereafter.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "description": "Return messages after this cursor. Omit it for the first page and use the returned cursor thereafter."
+            }
+          },
+          {
+            "name": "wait",
+            "in": "query",
+            "required": false,
+            "description": "When true, wait briefly for new messages after the cursor.",
+            "schema": {
+              "type": "boolean",
+              "description": "When true, wait briefly for new messages after the cursor.",
+              "example": false
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum events to return in one page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Maximum events to return in one page.",
+              "example": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized state. Pending auth or checkout is not completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "thread": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    },
+                    "messages": {
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "message": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "from": {
+                                "type": "string",
+                                "enum": [
+                                  "you",
+                                  "agent",
+                                  "darwin"
+                                ]
+                              },
+                              "content": {
+                                "maxItems": 20,
+                                "type": "array",
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "text"
+                                        },
+                                        "text": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 32000
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "text"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "image"
+                                        },
+                                        "assetId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200,
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "assetId"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "audio"
+                                        },
+                                        "assetId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200,
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "assetId"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "video"
+                                        },
+                                        "assetId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200,
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "assetId"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "file"
+                                        },
+                                        "assetId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200,
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "assetId"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                }
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "accepted",
+                                  "delivered",
+                                  "failed",
+                                  "unknown"
+                                ]
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "message"
+                              }
+                            },
+                            "required": [
+                              "message",
+                              "from",
+                              "content",
+                              "status",
+                              "createdAt",
+                              "type"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "message": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "from": {
+                                "type": "string",
+                                "enum": [
+                                  "you",
+                                  "agent",
+                                  "darwin"
+                                ]
+                              },
+                              "content": {
+                                "maxItems": 20,
+                                "type": "array",
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "text"
+                                        },
+                                        "text": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 32000
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "text"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "image"
+                                        },
+                                        "assetId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200,
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "assetId"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "audio"
+                                        },
+                                        "assetId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200,
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "assetId"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "video"
+                                        },
+                                        "assetId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200,
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "assetId"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "file"
+                                        },
+                                        "assetId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200,
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "assetId"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                }
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "accepted",
+                                  "delivered",
+                                  "failed",
+                                  "unknown"
+                                ]
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "result"
+                              },
+                              "data": {
+                                "description": "Structured JSON returned by the action.",
+                                "$ref": "#/components/schemas/ActThreadSchema3___schema0"
+                              }
+                            },
+                            "required": [
+                              "message",
+                              "from",
+                              "content",
+                              "status",
+                              "createdAt",
+                              "type"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "errors": {
+                      "description": "Error events in this page. Retryable does not authorize replaying an accepted effect or payment.",
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "event": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                          },
+                          "code": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                          },
+                          "retryable": {
+                            "type": "boolean"
+                          },
+                          "action": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "event",
+                          "code",
+                          "retryable",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "action": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                          },
+                          "capability": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                          },
+                          "request": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "awaiting_confirmation",
+                              "queued",
+                              "running",
+                              "waiting",
+                              "reconciling",
+                              "succeeded",
+                              "failed",
+                              "cancelled",
+                              "withdrawn"
+                            ]
+                          },
+                          "cancellationRequested": {
+                            "type": "boolean"
+                          },
+                          "accepted": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "action",
+                          "capability",
+                          "request",
+                          "status",
+                          "cancellationRequested"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "requests": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "request": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "action": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "resolved",
+                                  "expired",
+                                  "cancelled",
+                                  "settled",
+                                  "failed",
+                                  "voided",
+                                  "partially_refunded",
+                                  "reversal_pending",
+                                  "reversal_failed",
+                                  "disputed",
+                                  "refunded"
+                                ]
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "action_request"
+                              },
+                              "capability": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "arguments": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "additionalProperties": {
+                                  "$ref": "#/components/schemas/ActThreadSchema3___schema1"
+                                }
+                              },
+                              "account": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              }
+                            },
+                            "required": [
+                              "request",
+                              "action",
+                              "status",
+                              "type",
+                              "capability",
+                              "arguments"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "request": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "action": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "resolved",
+                                  "expired",
+                                  "cancelled",
+                                  "settled",
+                                  "failed",
+                                  "voided",
+                                  "partially_refunded",
+                                  "reversal_pending",
+                                  "reversal_failed",
+                                  "disputed",
+                                  "refunded"
+                                ]
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "approval_request"
+                              },
+                              "reason": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000
+                              },
+                              "expiresAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "capability": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "arguments": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "additionalProperties": {
+                                  "$ref": "#/components/schemas/ActThreadSchema3___schema1"
+                                }
+                              },
+                              "account": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              }
+                            },
+                            "required": [
+                              "request",
+                              "action",
+                              "status",
+                              "type",
+                              "reason",
+                              "expiresAt",
+                              "capability",
+                              "arguments"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "request": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "action": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "resolved",
+                                  "expired",
+                                  "cancelled",
+                                  "settled",
+                                  "failed",
+                                  "voided",
+                                  "partially_refunded",
+                                  "reversal_pending",
+                                  "reversal_failed",
+                                  "disputed",
+                                  "refunded"
+                                ]
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "authentication_request"
+                              },
+                              "targetAgent": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "authenticationType": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100,
+                                "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$"
+                              },
+                              "resource": {
+                                "type": "string",
+                                "maxLength": 2000,
+                                "format": "uri"
+                              },
+                              "scopes": {
+                                "maxItems": 50,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                }
+                              },
+                              "account": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              }
+                            },
+                            "required": [
+                              "request",
+                              "action",
+                              "status",
+                              "type",
+                              "targetAgent",
+                              "authenticationType",
+                              "resource",
+                              "scopes"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "request": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "action": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "resolved",
+                                  "expired",
+                                  "cancelled",
+                                  "settled",
+                                  "failed",
+                                  "voided",
+                                  "partially_refunded",
+                                  "reversal_pending",
+                                  "reversal_failed",
+                                  "disputed",
+                                  "refunded"
+                                ]
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "authentication_required"
+                              },
+                              "targetAgent": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "scopes": {
+                                "maxItems": 50,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                }
+                              },
+                              "account": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "expiresAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              }
+                            },
+                            "required": [
+                              "request",
+                              "action",
+                              "status",
+                              "type",
+                              "targetAgent",
+                              "scopes"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "request": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "action": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "resolved",
+                                  "expired",
+                                  "cancelled",
+                                  "settled",
+                                  "failed",
+                                  "voided",
+                                  "partially_refunded",
+                                  "reversal_pending",
+                                  "reversal_failed",
+                                  "disputed",
+                                  "refunded"
+                                ]
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "payment_request"
+                              },
+                              "amountMinor": {
+                                "type": "string",
+                                "pattern": "^[1-9][0-9]{0,17}$"
+                              },
+                              "currency": {
+                                "type": "string",
+                                "pattern": "^[A-Z]{3}$"
+                              },
+                              "payee": {
+                                "type": "object",
+                                "properties": {
+                                  "agent": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200,
+                                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": [
+                                  "agent",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "acceptedMethods": {
+                                "minItems": 1,
+                                "maxItems": 8,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "card",
+                                    "bank",
+                                    "hosted_checkout",
+                                    "darwin_wallet",
+                                    "mpp",
+                                    "x402",
+                                    "ucp",
+                                    "acp"
+                                  ]
+                                }
+                              },
+                              "expiresAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              }
+                            },
+                            "required": [
+                              "request",
+                              "action",
+                              "status",
+                              "type",
+                              "amountMinor",
+                              "currency",
+                              "payee",
+                              "acceptedMethods",
+                              "expiresAt"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "request": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "action": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "resolved",
+                                  "expired",
+                                  "cancelled",
+                                  "settled",
+                                  "failed",
+                                  "voided",
+                                  "partially_refunded",
+                                  "reversal_pending",
+                                  "reversal_failed",
+                                  "disputed",
+                                  "refunded"
+                                ]
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "completion_request"
+                              },
+                              "result": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                              }
+                            },
+                            "required": [
+                              "request",
+                              "action",
+                              "status",
+                              "type",
+                              "result"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "cursor": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 200,
+                      "pattern": "^.+:(0|[1-9][0-9]*)$"
+                    },
+                    "hasMore": {
+                      "type": "boolean"
+                    },
+                    "archived": {
+                      "type": "boolean"
+                    },
+                    "needsAttention": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "thread",
+                    "messages",
+                    "actions",
+                    "requests",
+                    "cursor",
+                    "hasMore",
+                    "archived",
+                    "needsAttention"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid typed input.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "An authenticated end-user principal is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing scope, AI grant, or access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable to this principal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, revision, route or idempotency conflict; inspect the thread before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required service or provider is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/act/threads/{thread}/archive": {
+      "post": {
+        "operationId": "archive_thread",
+        "summary": "Archive thread",
+        "description": "Archive a thread without cancelling its work.",
+        "tags": [
+          "Act"
+        ],
+        "x-required-scope": "agent:write",
+        "x-release-status": "release-gated",
+        "x-response-schema-status": "runtime-validated",
+        "parameters": [
+          {
+            "name": "thread",
+            "in": "path",
+            "required": true,
+            "description": "The thread to hide from the active list.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "description": "The thread to hide from the active list.",
+              "example": "thread-id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "agent": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                    "description": "Optional agent whose side of the thread you want to archive."
+                  }
+                },
+                "required": [],
+                "additionalProperties": false,
+                "example": {
+                  "thread": "thread-id"
+                }
+              },
+              "example": {
+                "thread": "thread-id"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized state. Pending auth or checkout is not completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "thread": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    },
+                    "archived": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "thread",
+                    "archived"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid typed input.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "An authenticated end-user principal is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing scope, AI grant, or access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable to this principal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, revision, route or idempotency conflict; inspect the thread before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required service or provider is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/act/authentications": {
+      "post": {
+        "operationId": "authenticate",
+        "summary": "Authenticate",
+        "description": "Start hosted authentication for a thread request.",
+        "tags": [
+          "Act"
+        ],
+        "x-required-scope": "connections:write",
+        "x-release-status": "release-gated",
+        "x-response-schema-status": "runtime-validated",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "request": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                    "description": "The authentication request returned by the thread.",
+                    "example": "authentication-request-id"
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                    "description": "A stable key for this connection attempt. Reuse it after a timeout."
+                  }
+                },
+                "required": [
+                  "request"
+                ],
+                "additionalProperties": false,
+                "example": {
+                  "request": "authentication-request-id"
+                }
+              },
+              "example": {
+                "request": "authentication-request-id"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized state. Pending auth or checkout is not completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "authentication": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "idempotencyKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "const": "awaiting_consent"
+                        },
+                        "url": {
+                          "type": "string",
+                          "maxLength": 2048,
+                          "format": "uri"
+                        }
+                      },
+                      "required": [
+                        "authentication",
+                        "expiresAt",
+                        "status"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "authentication": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "idempotencyKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "authorizing",
+                            "exchanging",
+                            "expired",
+                            "denied",
+                            "failed"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "authentication",
+                        "expiresAt",
+                        "status"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "authentication": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "idempotencyKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "const": "connected"
+                        },
+                        "account": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        }
+                      },
+                      "required": [
+                        "authentication",
+                        "expiresAt",
+                        "status",
+                        "account"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid typed input.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "An authenticated end-user principal is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing scope, AI grant, or access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable to this principal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, revision, route or idempotency conflict; inspect the thread before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required service or provider is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/act/payments": {
+      "post": {
+        "operationId": "pay",
+        "summary": "Pay",
+        "description": "Open hosted selection for an immutable payment request.",
+        "tags": [
+          "Act"
+        ],
+        "x-required-scope": "agent:write",
+        "x-release-status": "release-gated",
+        "x-response-schema-status": "runtime-validated",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "request": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                    "description": "The immutable payment request returned in the thread.",
+                    "example": "payment-request-id"
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                    "description": "A stable key for this payment request. Reuse it with the same request after a timeout."
+                  }
+                },
+                "required": [
+                  "request"
+                ],
+                "additionalProperties": false,
+                "example": {
+                  "request": "payment-request-id"
+                }
+              },
+              "example": {
+                "request": "payment-request-id"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized state. Pending auth or checkout is not completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "request": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "const": "selection_required"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "url": {
+                          "type": "string",
+                          "maxLength": 2048,
+                          "format": "uri"
+                        },
+                        "idempotencyKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        }
+                      },
+                      "required": [
+                        "request",
+                        "status",
+                        "expiresAt",
+                        "url",
+                        "idempotencyKey"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "payment": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "idempotencyKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "prepared",
+                            "dispatching",
+                            "uncertain",
+                            "pending"
+                          ]
+                        },
+                        "url": {
+                          "type": "string",
+                          "maxLength": 2048,
+                          "format": "uri"
+                        }
+                      },
+                      "required": [
+                        "payment",
+                        "expiresAt",
+                        "idempotencyKey",
+                        "status",
+                        "url"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "payment": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "idempotencyKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "settled",
+                            "partially_refunded",
+                            "reversal_pending",
+                            "reversal_failed",
+                            "disputed",
+                            "refunded"
+                          ]
+                        },
+                        "receipt": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        }
+                      },
+                      "required": [
+                        "payment",
+                        "expiresAt",
+                        "idempotencyKey",
+                        "status",
+                        "receipt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "payment": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "idempotencyKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "failed",
+                            "voided"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "payment",
+                        "expiresAt",
+                        "idempotencyKey",
+                        "status"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid typed input.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "An authenticated end-user principal is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing scope, AI grant, or access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable to this principal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, revision, route or idempotency conflict; inspect the thread before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required service or provider is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/act/payment-requests/{paymentRequestId}/options": {
+      "get": {
+        "deprecated": true,
+        "operationId": "get_payment_options",
+        "summary": "Get payment options",
+        "description": "Return currently eligible payment rails and saved methods for one immutable payment request. Requires the signed-in person’s OAuth human:actions grant. No payment or provider checkout is started.",
+        "tags": [
+          "Act"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scope": "human:actions",
+        "x-darwin-callable": false,
+        "x-release-status": "release-gated",
+        "parameters": [
+          {
+            "name": "paymentRequestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized state. Pending auth or checkout is not completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "paymentRequestId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    },
+                    "targetAgent": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    },
+                    "requestRevision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "requestDigest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "amountMinor": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,17}$"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "payeeId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    },
+                    "payeeName": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "operationId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                    },
+                    "eligibleMethods": {
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "hosted_checkout"
+                              },
+                              "method": {
+                                "type": "string",
+                                "const": "hosted_checkout"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "method"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "saved_method"
+                              },
+                              "method": {
+                                "type": "string",
+                                "enum": [
+                                  "card",
+                                  "bank",
+                                  "mpp",
+                                  "x402",
+                                  "ucp",
+                                  "acp"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "method"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "darwin_wallet"
+                              },
+                              "method": {
+                                "type": "string",
+                                "const": "darwin_wallet"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "method"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "savedMethods": {
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "paymentMethodId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "card",
+                              "bank",
+                              "mpp",
+                              "x402",
+                              "ucp",
+                              "acp"
+                            ]
+                          },
+                          "expiresAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "paymentMethodId",
+                          "label",
+                          "method",
+                          "expiresAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "unavailableMethods": {
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "card",
+                              "bank",
+                              "hosted_checkout",
+                              "darwin_wallet",
+                              "mpp",
+                              "x402",
+                              "ucp",
+                              "acp"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "provider_unavailable",
+                              "saved_method_unavailable"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "method",
+                          "reason"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "unavailableReason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "request_expired",
+                            "payment_settled",
+                            "payment_failed",
+                            "payment_voided",
+                            "payment_refunded",
+                            "payment_in_progress",
+                            "request_not_payable",
+                            "unsupported_rail",
+                            "provider_unavailable",
+                            "saved_method_unavailable"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "paymentRequestId",
+                    "targetAgent",
+                    "requestRevision",
+                    "requestDigest",
+                    "expiresAt",
+                    "amountMinor",
+                    "currency",
+                    "payeeId",
+                    "payeeName",
+                    "operationId",
+                    "eligibleMethods",
+                    "savedMethods",
+                    "unavailableMethods",
+                    "unavailableReason"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid typed input.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "An authenticated end-user principal is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing scope, AI grant, or access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable to this principal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, revision, route or idempotency conflict; inspect the thread before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required service or provider is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/act/payments/{paymentId}": {
+      "get": {
+        "deprecated": true,
+        "operationId": "get_payment_status",
+        "summary": "Get payment status",
+        "description": "Read the durable state of a payment already started for this account. No new charge is created. A receipt appears only after verified provider settlement.",
+        "tags": [
+          "Act"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scope": "human:actions",
+        "x-darwin-callable": false,
+        "x-release-status": "release-gated",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized state. Pending auth or checkout is not completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "payment": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "prepared",
+                            "dispatching",
+                            "uncertain",
+                            "pending"
+                          ]
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "url": {
+                          "type": "string",
+                          "maxLength": 2048,
+                          "format": "uri"
+                        }
+                      },
+                      "required": [
+                        "payment",
+                        "status",
+                        "expiresAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "payment": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "settled",
+                            "partially_refunded",
+                            "reversal_pending",
+                            "reversal_failed",
+                            "disputed",
+                            "refunded"
+                          ]
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "receipt": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        }
+                      },
+                      "required": [
+                        "payment",
+                        "status",
+                        "expiresAt",
+                        "receipt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "payment": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "failed",
+                            "voided"
+                          ]
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        }
+                      },
+                      "required": [
+                        "payment",
+                        "status",
+                        "expiresAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid typed input.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "An authenticated end-user principal is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing scope, AI grant, or access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable to this principal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, revision, route or idempotency conflict; inspect the thread before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required service or provider is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

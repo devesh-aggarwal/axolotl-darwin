@@ -1,0 +1,39 @@
+{
+  "site": "Tidepool demo site",
+  "notes": "Every issue deliberately planted in this site. `page` is relative to the site root (\"\" = home page). `rule` codes match src/lib/audit/rules.ts. Issues marked optional may not reproduce on every host (e.g. Vercel adds HSTS on *.vercel.app domains).",
+  "pages": ["", "about.html", "pricing.html", "contact.html", "blog.html"],
+  "issues": [
+    { "id": "GT-01", "category": "accessibility", "rule": "image-alt", "page": "", "selector": "#hero-img", "description": "Hero image has no alt attribute" },
+    { "id": "GT-02", "category": "accessibility", "rule": "color-contrast", "page": "", "selector": ".tagline", "description": "Tagline text #c4c4c4 on #ffffff fails WCAG AA contrast" },
+    { "id": "GT-03", "category": "seo", "rule": "meta-description", "page": "", "description": "Home page has no meta description" },
+    { "id": "GT-04", "category": "performance", "rule": "oversized-image", "page": "", "selector": "#hero-img", "description": "img/hero.png is about 3 MB" },
+    { "id": "GT-05", "category": "performance", "rule": "unsized-image", "page": "", "selector": "#hero-img", "description": "Hero image has no width/height, causing layout shift" },
+    { "id": "GT-06", "category": "performance", "rule": "render-blocking-script", "page": "", "selector": "script[src=\"js/analytics.js\"]", "description": "Synchronous script in <head> blocks rendering" },
+    { "id": "GT-07", "category": "links", "rule": "broken-link", "page": "", "target": "pricing-2023.html", "description": "Internal link to pricing-2023.html returns 404" },
+
+    { "id": "GT-08", "category": "seo", "rule": "document-title", "page": "about.html", "description": "About page has no <title>" },
+    { "id": "GT-09", "category": "accessibility", "rule": "image-alt", "page": "about.html", "selector": "#team-photo", "description": "Team photo has no alt attribute" },
+    { "id": "GT-10", "category": "links", "rule": "broken-link", "page": "about.html", "target": "https://press.tidepool-demo.invalid/coverage", "description": "External press link does not resolve" },
+
+    { "id": "GT-11", "category": "seo", "rule": "multiple-h1", "page": "pricing.html", "description": "Pricing page has two <h1> elements" },
+    { "id": "GT-12", "category": "accessibility", "rule": "color-contrast", "page": "pricing.html", "selector": ".fine-print", "description": "Fine print #d0d0d0 on #ffffff fails WCAG AA contrast" },
+    { "id": "GT-13", "category": "links", "rule": "broken-link", "page": "pricing.html", "target": "docs/getting-started.html", "description": "Internal link to docs/getting-started.html returns 404" },
+
+    { "id": "GT-14", "category": "accessibility", "rule": "label", "page": "contact.html", "selector": "#email", "description": "Email input has no associated label (placeholder only)" },
+    { "id": "GT-15", "category": "accessibility", "rule": "button-name", "page": "contact.html", "selector": "#send-btn", "description": "Icon-only submit button has no accessible name" },
+    { "id": "GT-16", "category": "security", "rule": "insecure-form-action", "page": "contact.html", "selector": "form", "description": "Contact form posts over plain http://" },
+
+    { "id": "GT-17", "category": "accessibility", "rule": "html-has-lang", "page": "blog.html", "selector": "html", "description": "Blog page <html> has no lang attribute" },
+    { "id": "GT-18", "category": "seo", "rule": "meta-description", "page": "blog.html", "description": "Blog page has no meta description" },
+    { "id": "GT-19", "category": "accessibility", "rule": "image-alt", "page": "blog.html", "selector": "#cover-img", "description": "Blog cover image has no alt attribute" },
+    { "id": "GT-20", "category": "links", "rule": "broken-link", "page": "blog.html", "target": "blog/launch-recap.html", "description": "Internal link to blog/launch-recap.html returns 404" },
+
+    { "id": "GT-21", "category": "security", "rule": "missing-csp", "page": "", "description": "No Content-Security-Policy header" },
+    { "id": "GT-22", "category": "security", "rule": "missing-x-frame-options", "page": "", "description": "No X-Frame-Options header (or CSP frame-ancestors)" },
+    { "id": "GT-23", "category": "security", "rule": "missing-x-content-type-options", "page": "", "description": "No X-Content-Type-Options: nosniff header" },
+    { "id": "GT-24", "category": "security", "rule": "missing-referrer-policy", "page": "", "description": "No Referrer-Policy header" },
+    { "id": "GT-25", "category": "security", "rule": "missing-hsts", "page": "", "optional": true, "description": "No Strict-Transport-Security header (Vercel adds this automatically on *.vercel.app)" },
+    { "id": "GT-26", "category": "seo", "rule": "robots-txt", "page": "", "description": "No robots.txt at the site root" },
+    { "id": "GT-27", "category": "seo", "rule": "sitemap", "page": "", "description": "No sitemap.xml at the site root" }
+  ]
+}
