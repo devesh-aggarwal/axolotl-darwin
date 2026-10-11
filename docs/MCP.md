@@ -62,3 +62,8 @@ Codex (`~/.codex/hooks.json`): add the same command under `"Stop"`.
 npx tsx --tsconfig tsconfig.json scripts/test-mcp.ts          # fake map sources
 npx tsx --tsconfig tsconfig.json scripts/test-mcp.ts --live   # real Photon / Nominatim / Darwin
 ```
+
+## Recording with/without in Codex
+
+`scripts/codex-demo-mode.sh base` turns Axolotl (server and Stop hook) and Codex's browser/computer-use plugins off, so the run is the Uber Eats plugin alone, like the original ChatGPT session. Without that, Codex can open the plugin's store links in its own browser and build the cart itself.
+`scripts/codex-demo-mode.sh axolotl` turns both back on. Restart the ChatGPT app after switching; the previous config is saved as `config.toml.bak-demo-mode`.
