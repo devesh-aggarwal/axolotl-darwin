@@ -12,7 +12,7 @@ export const env = {
   darwinApiBase: process.env.DARWIN_API_BASE_URL || "https://api.darwin.so/api",
   /** Darwin user OAuth access token with `human:actions` (Act). Optional. */
   darwinAccessToken: process.env.DARWIN_ACCESS_TOKEN || "",
-  /** Darwin application API key (Search only). Optional. */
+  /** Darwin application API key. Not sent: Darwin's keys aren't working yet, so Search runs anonymously. */
   darwinApiKey: process.env.DARWIN_API_KEY || "",
 
   openaiApiKey: process.env.OPENAI_API_KEY || "",

@@ -71,11 +71,10 @@ function fakeFetch(handler: Handler, calls: Call[]): typeof fetch {
   }) as typeof fetch;
 }
 
-function client(handler: Handler, calls: Call[] = [], extra: { accessToken?: string; apiKey?: string; timeoutMs?: number } = {}) {
+function client(handler: Handler, calls: Call[] = [], extra: { accessToken?: string; timeoutMs?: number } = {}) {
   return new RealDarwinClient({
     apiBase: API,
     accessToken: extra.accessToken ?? "",
-    apiKey: extra.apiKey ?? "",
     fetchImpl: fakeFetch(handler, calls),
     now: () => 1_000,
     timeoutMs: extra.timeoutMs,
@@ -262,12 +261,12 @@ async function testSearchDetails(): Promise<void> {
     await client(() => ({ body: seo }), calls).search("SEO audit", { previousResponseId: "resp_1" });
     assert(JSON.stringify(Object.keys(calls[0].body as object).sort()) === JSON.stringify(["maxResults", "previousResponseId", "query"]), "body keys");
   });
-  await check("search credentials: bearer when an access token is set, else x-api-key", async () => {
+  await check("search credentials: bearer when an access token is set, else anonymous (never x-api-key)", async () => {
     const calls: Call[] = [];
-    await client(() => ({ body: seo }), calls, { accessToken: TOKEN, apiKey: API_KEY }).search("SEO audit");
-    await client(() => ({ body: seo }), calls, { apiKey: API_KEY }).search("SEO audit");
+    await client(() => ({ body: seo }), calls, { accessToken: TOKEN }).search("SEO audit");
+    await client(() => ({ body: seo }), calls).search("SEO audit");
     assert(calls[0].headers.get("authorization") === `Bearer ${TOKEN}` && !calls[0].headers.has("x-api-key"), "bearer");
-    assert(calls[1].headers.get("x-api-key") === API_KEY && !calls[1].headers.has("authorization"), "api key");
+    assert(!calls[1].headers.has("x-api-key") && !calls[1].headers.has("authorization"), "anonymous");
   });
   await check("401 with a credential falls back to an anonymous search", async () => {
     const calls: Call[] = [];
@@ -514,7 +513,7 @@ async function testActFlows(): Promise<void> {
 
   await check("errors never echo credentials", async () => {
     const err = await expectThrow(() =>
-      client(() => ({ status: 400, body: { code: "BAD", message: `header was Bearer ${TOKEN} and api_key=${API_KEY}` } }), [], { accessToken: TOKEN, apiKey: API_KEY }).startTask(params()),
+      client(() => ({ status: 400, body: { code: "BAD", message: `header was Bearer ${TOKEN} and api_key=${API_KEY}` } }), [], { accessToken: TOKEN }).startTask(params()),
     );
     const msg = String((err as Error).message);
     assert(!msg.includes(TOKEN) && !msg.includes(API_KEY), msg);

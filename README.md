@@ -26,7 +26,7 @@ Optional `.env` settings:
 |---|---|
 | `OPENAI_API_KEY` | Enables the optional GPT review (layer 4 judge) and GPT-written fix plans. Model `gpt-5.6-luna`. |
 | `DARWIN_ACCESS_TOKEN` | Darwin user OAuth token with `human:actions`, allowlisted for the Act pilot. Needed to run real Darwin agents. |
-| `DARWIN_API_KEY` | Optional application key for authenticated Darwin Search. |
+| `DARWIN_API_KEY` | Currently ignored. Darwin application keys aren't working yet, so Search runs anonymously. |
 | `DEMO_SITE_URL` | Public URL of the deployed demo site, so real Darwin agents can reach it. |
 | `AXOLOTL_CLIENT` | `mock` (default) or `real`: which agents new runs use. |
 | `AXOLOTL_MODE` | `workflow` (default, Option A) or `your-agent` (Option B: your agent first, Darwin agents as backups). |

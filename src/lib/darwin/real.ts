@@ -29,8 +29,6 @@ export interface RealDarwinClientOptions {
   apiBase?: string;
   /** OAuth access token with a live `human:actions` grant (Act; also used for Search when set). */
   accessToken?: string;
-  /** Application API key, sent as `x-api-key` for Search when no access token is set. */
-  apiKey?: string;
   fetchImpl?: typeof fetch;
   now?: () => number;
   timeoutMs?: number;
@@ -107,7 +105,6 @@ export class RealDarwinClient implements DarwinClient {
   readonly kind = "real" as const;
   private readonly apiBase: string;
   private readonly accessToken: string;
-  private readonly apiKey: string;
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => number;
   private readonly timeoutMs: number;
@@ -118,7 +115,6 @@ export class RealDarwinClient implements DarwinClient {
   constructor(opts: RealDarwinClientOptions = {}) {
     this.apiBase = (opts.apiBase ?? env.darwinApiBase).replace(/\/+$/, "");
     this.accessToken = opts.accessToken ?? env.darwinAccessToken;
-    this.apiKey = opts.apiKey ?? env.darwinApiKey;
     this.fetchImpl = opts.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
     this.now = opts.now ?? Date.now;
     this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -291,9 +287,10 @@ export class RealDarwinClient implements DarwinClient {
     }
   }
 
+  // Search runs anonymously unless an Act token is set. Darwin application API keys aren't
+  // working yet (per Darwin), so DARWIN_API_KEY is deliberately not sent.
   private searchHeaders(): Record<string, string> {
     if (this.accessToken) return { Authorization: `Bearer ${this.accessToken}` };
-    if (this.apiKey) return { "x-api-key": this.apiKey };
     return {};
   }
 
@@ -369,7 +366,7 @@ export class RealDarwinClient implements DarwinClient {
   /** Strips configured credentials, search tokens and token-shaped strings from text. */
   private redact(text: string): string {
     let out = text;
-    for (const secret of [this.accessToken, this.apiKey, ...this.searchTokens.values()]) {
+    for (const secret of [this.accessToken, ...this.searchTokens.values()]) {
       if (secret && secret.length >= 6) out = out.split(secret).join("[redacted]");
     }
     for (const re of SECRET_PATTERNS) {

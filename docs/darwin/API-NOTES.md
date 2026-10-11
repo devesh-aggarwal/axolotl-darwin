@@ -18,7 +18,7 @@ Not used: `GET /v3/search/{searchId}` and the `searchId` handoff to Act. The `ta
 ## Auth model
 
 - **Search is public.** Anonymous responses carry a `searchToken`. The client keeps it in an in-memory map keyed by `searchId` (server side only) and never logs it or sends it to the browser.
-- Search credentials, in order: `DARWIN_ACCESS_TOKEN` as a bearer token (so readiness reflects the caller Act will run as), else `DARWIN_API_KEY` as `x-api-key`, else anonymous. A 401 on Search, or a 403 outside a `previousResponseId` continuation, is retried once anonymously.
+- Search credentials, in order: `DARWIN_ACCESS_TOKEN` as a bearer token (so readiness reflects the caller Act will run as), else anonymous. `DARWIN_API_KEY` is not sent: Darwin says application keys aren't working yet. A 401 on Search, or a 403 outside a `previousResponseId` continuation, is retried once anonymously.
 - **Act is a pilot preview.** It needs a credential whose ID is on Darwin's Act allowlist: an OAuth access token with a live `human:actions` grant (the spec also allows a user API key with `agent:write`; we only use the bearer token for Act). Everyone else gets `403 ACT_PREVIEW_ACCESS_REQUIRED`.
 
 ## Search result mapping
@@ -65,7 +65,7 @@ While polling, non-transport errors come back as `error` polls and are not throw
 ## Configuration
 
 - `DARWIN_ACCESS_TOKEN`: an allowlisted OAuth token with `human:actions`. Real runs (Act) require it.
-- `DARWIN_API_KEY`: optional and used for Search only.
+- `DARWIN_API_KEY`: currently ignored; Search runs anonymously until Darwin's application keys work.
 - `DARWIN_API_BASE_URL`: optional. The default is `https://api.darwin.so/api`.
 - `AXOLOTL_CLIENT=real` makes the real client the default for new runs.
 

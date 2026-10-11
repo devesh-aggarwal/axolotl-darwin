@@ -56,7 +56,7 @@ async function main(): Promise<void> {
 
   head("Credentials");
   line(`DARWIN_ACCESS_TOKEN (Act): ${secretState(env.darwinAccessToken)}`);
-  line(`DARWIN_API_KEY (Search):   ${secretState(env.darwinApiKey)}`);
+  line(`DARWIN_API_KEY:            ${secretState(env.darwinApiKey)} (unused; Search is anonymous)`);
   line(`DEMO_SITE_URL:             ${siteUrl}${!LIVE || isPublic(siteUrl) ? "" : "  ← not public: real agents can't reach it. Deploy demo-site/ and set DEMO_SITE_URL."}`);
 
   // ---------- 1. Search ----------

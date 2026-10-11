@@ -20,7 +20,7 @@ Put what Darwin gives you in `.env`:
 
 | Darwin gives us | Variable | Unlocks |
 |---|---|---|
-| Application API key | `DARWIN_API_KEY` | Search only (Search already works without it) |
+| Application API key | `DARWIN_API_KEY` | Not used: Darwin says keys aren't working yet; Search runs anonymously |
 | User token with `human:actions`, on the Act allowlist | `DARWIN_ACCESS_TOKEN` | Running Darwin agents through Act |
 | Credits | none | Paying for usage; doesn't unlock Act by itself |
 

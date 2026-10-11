@@ -126,7 +126,7 @@ Issue conventions:
 - All latencies scale with `context.timeScale`.
 
 **RealDarwinClient** (`real.ts`)
-- Search: `POST {apiBase}/v3/search` `{ query, maxResults }` (public, no key; optional `x-api-key` or bearer). Map `response.agents[]` to `AgentCandidate`. Keep `searchToken` in memory only.
+- Search: `POST {apiBase}/v3/search` `{ query, maxResults }` (anonymous; bearer only when `DARWIN_ACCESS_TOKEN` is set; no `x-api-key`). Map `response.agents[]` to `AgentCandidate`. Keep `searchToken` in memory only.
 - Act v3 (pilot preview, allowlisted credentials only): `POST {apiBase}/v3/act` with `Authorization: Bearer <DARWIN_ACCESS_TOKEN>`, `Idempotency-Key`, body `{ targets: [{ agentId, capabilityId, arguments? }], message }`. Read with `GET {apiBase}/v3/act/requests/{actRequestId}?includeThreadState=true&threadId=…&cursor=…`.
 - Thread state → `TaskPoll`: pending `authentication_request` / `authentication_required` ⇒ blocked authentication; `payment_request` ⇒ blocked payment; `approval_request` ⇒ blocked approval; non-retryable `errors[]` or failed/cancelled actions ⇒ error; an agent `result` message ⇒ completed (`data`, else JSON parsed from text content).
 - `ACT_PREVIEW_ACCESS_REQUIRED` (403) and missing credentials are hard errors with a clear message; 5xx / network ⇒ `TransportError`.
