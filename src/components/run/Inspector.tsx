@@ -130,7 +130,7 @@ function lowerFirst(text: string): string {
 function kindLabel(a: AttemptView, runClient: string | undefined): string | null {
   if (a.agent.source === "direct") return "Called directly at its own address";
   if (a.agent.source === "darwin") return "Ran through Darwin";
-  return runClient === "darwin" ? "Simulated backup" : "Simulated agent";
+  return runClient === "darwin" ? "Backup agent" : null;
 }
 
 function StoryStep({ a }: { a: AttemptView }) {

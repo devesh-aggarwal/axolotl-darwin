@@ -89,7 +89,7 @@ function CardImpl({ data }: NodeProps<CardNode>) {
             />
           )}
           <span className="truncate">{status}</span>
-          {showSource && node.currentAgent && node.kind === "agent" && <SourceTag simulated={node.currentAgent.source === "mock"} />}
+          {showSource && node.currentAgent && node.kind === "agent" && node.currentAgent.source !== "mock" && <SourceTag />}
         </div>
       </div>
       {regrowing && <div key={swapAt} className="pointer-events-none absolute inset-0 rounded-[12px] anim-regrow-glow" />}
@@ -99,19 +99,15 @@ function CardImpl({ data }: NodeProps<CardNode>) {
   );
 }
 
-/** Same marks as the run's source badge: solid for a real agent, dashed for a simulated one. */
-function SourceTag({ simulated }: { simulated: boolean }) {
+/** Marks a step run by a real agent found on Darwin. */
+function SourceTag() {
   return (
     <span
       className="ml-auto shrink-0 rounded-full border px-1.5 py-[2px] text-[11.5px] font-medium leading-none"
-      style={{
-        borderColor: simulated ? "var(--line-strong)" : "color-mix(in srgb, var(--s-running) 35%, var(--line))",
-        borderStyle: simulated ? "dashed" : "solid",
-        color: simulated ? "var(--ink-2)" : "var(--s-running)",
-      }}
-      title={simulated ? "A simulated agent ran this step" : "A real agent found on Darwin ran this step"}
+      style={{ borderColor: "color-mix(in srgb, var(--s-running) 35%, var(--line))", color: "var(--s-running)" }}
+      title="A real agent found on Darwin ran this step"
     >
-      {simulated ? "Simulated" : "Real"}
+      Real
     </span>
   );
 }

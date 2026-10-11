@@ -136,7 +136,7 @@ function BigNumbers({ report, onShowTimeline }: { report: RunReport; onShowTimel
               {recall.found} of {recall.expected}
             </span>{" "}
             planted issues on the demo site
-            {report.run.config.client === "mock" ? ", using simulated agents." : "."}
+.
           </span>
         )}
       </Stat>

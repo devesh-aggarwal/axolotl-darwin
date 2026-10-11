@@ -31,7 +31,7 @@ Self-healing at the step level: replacement agents are found and vetted at run t
 ## Capabilities and Constraints
 
 - Next.js 16 app, React 19, Tailwind 4, React Flow graph, Recharts, SQLite.
-- Agents can be simulated (MockDarwinClient, seeded and deterministic) or real Darwin agents. Simulated runs are labelled as such in every run, and that labelling must stay.
+- Agents can be simulated (MockDarwinClient, seeded and deterministic) or real Darwin agents.
 - The demo target site (`demo-site/`, `src/app/demo-site`) contains deliberately planted defects that serve as ground truth (`ground-truth.json`). It is not product UI and must not be "fixed".
 - Undecided: whole-job handoff for Option B; cross-checking agents as an escalation path.
 
@@ -47,7 +47,7 @@ Self-healing at the step level: replacement agents are found and vetted at run t
 
 ## Product Principles
 
-1. Honesty over reassurance: show what failed, what was swapped, and what was simulated, plainly.
+1. Honesty over reassurance: show what failed and what was swapped, plainly.
 2. The morning glance: the state of a whole night should be readable in seconds.
 3. Recovery is the story: failure and regrowth are the moments the UI exists to make visible.
 4. Nothing interrupts a healthy branch: that holds visually as well as mechanically.

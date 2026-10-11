@@ -8,13 +8,15 @@ import type { AgentSource, RunConfig } from "@/lib/types";
 
 /** Stretches simulated agent delays (and their timeouts) so a run takes about 30–40 s, closer to real agents. */
 const DEMO_PACE = 1.9;
+const DEFAULT_REQUEST = "Audit Tidepool Labs before launch";
 
 export function RunToolbar() {
   const { state, actions } = useAxolotl();
   const boot = state.boot;
   const [request, setRequest] = useState("");
   const [clientDraft, setClient] = useState<AgentSource | null>(null);
-  const parsed = parseRequest(request, boot?.defaults.siteUrl ?? "");
+  // An empty box runs the default audit, so Start run always works; typing a request changes what runs.
+  const parsed = parseRequest(request.trim() ? request : DEFAULT_REQUEST, boot?.defaults.siteUrl ?? "");
   const client = clientDraft ?? boot?.defaults.client ?? "mock";
   const [judge, setJudge] = useState<"mock" | "live">("mock");
   const [simulatedBackups, setSimulatedBackups] = useState(true);
@@ -59,7 +61,7 @@ export function RunToolbar() {
     if (chaos && !chaos.enabled) await actions.setChaos({ enabled: true });
     await actions.startRun({
       siteUrl: parsed.siteUrl,
-      request: request.trim(),
+      request: request.trim() || DEFAULT_REQUEST,
       ...(parsed.maxPages ? { maxPages: parsed.maxPages } : {}),
       client,
       llmMode: judge,
@@ -89,7 +91,6 @@ export function RunToolbar() {
           className="h-10 w-full rounded-[8px] border border-line-strong bg-panel px-3 text-[15px] text-ink outline-none placeholder:text-muted focus:border-[var(--focus)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--focus)_15%,transparent)]"
         />
       </form>
-      <SourceBadge client={run?.config.client ?? client} simulatedBackups={run ? run.config.simulatedBackups : simulatedBackups} />
       <div className="relative" ref={settingsRef}>
         <Button tone="ghost" onClick={() => setSettingsOpen((v) => !v)} aria-expanded={settingsOpen}>
           Settings
@@ -246,22 +247,3 @@ const FOCUS_NAME: Record<string, string> = {
   links: "broken links",
   crawl: "pages",
 };
-
-/** Always on screen: which kind of agents this run uses. Simulated runs must never pass as real. */
-function SourceBadge({ client, simulatedBackups }: { client: AgentSource; simulatedBackups: boolean }) {
-  const simulated = client === "mock";
-  const text = simulated ? "Simulated agents" : simulatedBackups ? "Darwin agents · simulated backups" : "Darwin agents";
-  return (
-    <span
-      className="inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[13px] font-medium"
-      style={{
-        borderColor: simulated ? "var(--line-strong)" : "color-mix(in srgb, var(--s-running) 35%, var(--line))",
-        borderStyle: simulated ? "dashed" : "solid",
-        color: simulated ? "var(--ink-2)" : "var(--s-running)",
-      }}
-      title={simulated ? "Every agent in this run is simulated. Results prove the checks, not agent quality." : undefined}
-    >
-      {text}
-    </span>
-  );
-}

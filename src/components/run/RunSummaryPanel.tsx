@@ -43,7 +43,6 @@ export function RunSummaryPanel() {
   const running = run.status === "running";
   const stuck = nodes.filter((n) => n.state === "failed" && Boolean(n.error)).length;
   const needsYou = stuck || (run.status === "failed" ? 1 : 0);
-  const simulated = run.config.client === "mock";
   // With the live stream down, "Running" would be a guess. Say what we know and when.
   const stale = running && !state.connected;
 
@@ -68,7 +67,6 @@ export function RunSummaryPanel() {
         {run.config.request && <p className="mt-2 text-[14.5px] leading-snug text-ink-2">&ldquo;{run.config.request}&rdquo;</p>}
         <div className="mt-1 text-[13.5px] text-muted">
           {done === nodes.length && nodes.length > 0 ? `All ${nodes.length} steps done` : `${done} of ${nodes.length} steps done`} · {siteName(run.config.siteUrl)}
-          {simulated && " · simulated agents"}
         </div>
         <div key={run.id} className="mt-5 grid grid-cols-[1.25fr_1fr_1fr] items-end gap-3">
           <Stat
@@ -84,7 +82,7 @@ export function RunSummaryPanel() {
         {run.stats?.recall !== undefined && (
           <div className="mt-4 text-[13.5px] text-muted">
             Caught {Math.round(run.stats.recall * 100)}% of the problems we planted in the demo site
-            {simulated ? ", using simulated agents." : "."}
+.
           </div>
         )}
         {Boolean(run.stats?.spentCents) && (

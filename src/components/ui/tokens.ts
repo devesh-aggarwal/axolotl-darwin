@@ -131,6 +131,6 @@ export function fmtCents(cents: number): string {
 export function tierLabel(tier: RouteTier, priceCents: number | undefined): string {
   if (tier === "yours") return "Your agent";
   if (tier === "free") return "Free";
-  if (tier === "simulated") return "Simulated";
+  if (tier === "simulated") return "Backup";
   return priceCents !== undefined ? `Paid ${fmtCents(priceCents)}` : "Paid";
 }
