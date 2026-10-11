@@ -7,7 +7,7 @@ a failing step. It is stateless JSON-RPC over Streamable HTTP and needs no extra
 
 | Tool | What it does | Real or simulated |
 |---|---|---|
-| `axolotl_resolve_place` | "castano stanford" → 685 Escondido Road, Stanford, CA 94305, cross-checked by a second map source | Real (Photon, then Nominatim, then a Darwin agent if Act access exists) |
+| `axolotl_resolve_place` | "Salesforce Tower" → 415 Mission Street, San Francisco, CA 94105, confirmed by two map services. When the maps don't know a place, it has the host run a web search and checks the result on the map (`address_hint`) | Real (Photon, Nominatim, the host's web search) |
 | `axolotl_add_to_cart` | Resolves the delivery place, then returns an ordered plan that uses the host's OWN tools (pass them in `host_tools`): a delivery plugin with a cart tool, then plugin search + the host's browser, then delivery sites in the browser. `simulate: true` uses Axolotl's simulated agents instead (demos only) | Real: the host builds a real cart. Axolotl can't call other plugins itself, so it plans and verifies |
 | `axolotl_verify_cart` | Checks the cart the host read back: right item, delivering to the resolved address, under budget, not checked out. Fail = take the next route | Real |
 | `axolotl_checkout` | Marks a simulated cart as ordered. Real carts are checked out by the person | Simulated only |

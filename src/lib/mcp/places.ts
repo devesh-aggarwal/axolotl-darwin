@@ -142,7 +142,18 @@ export function darwinPlaceProvider(query: string): Provider<Place[]> {
 }
 
 const STREET_WORDS = new Set(["st", "street", "rd", "road", "ave", "avenue", "blvd", "boulevard", "dr", "drive", "way", "ln", "lane", "ct", "court", "pl", "place", "hwy"]);
-const GENERIC = new Set(["the", "a", "an", "at", "in", "near", "my", "our", "office", "offices", "building", "hq", "headquarters", "campus", "house", "home", "dorm", "ca", "usa", "us", "california"]);
+const GENERIC = new Set(["the", "a", "an", "at", "in", "near", "my", "our", "office", "offices", "building", "hq", "headquarters", "campus", "house", "home", "dorm", "ca", "usa", "us", "california", "location", "place", "work", "deliver", "delivery", "to", "for"]);
+
+/** "my location at Salesforce Tower" → "Salesforce Tower". */
+export function stripFiller(query: string): string {
+  return query.replace(/^\s*(please\s+)?(deliver(y)?\s+to\s+)?(my|our|the)\s+(current\s+)?(location|office|place|spot|desk|building)\s+(at|in|on)\s+/i, "").replace(/^\s*(at|to)\s+/i, "").trim() || query.trim();
+}
+
+/** Street names the person said ("sansome" in "a16z sansome st"); a looked-up address must be on one of them. */
+function namedStreets(query: string): string[] {
+  const w = words(query);
+  return w.filter((t, i) => STREET_WORDS.has(w[i + 1] ?? "") && !/^\d/.test(t));
+}
 
 export function foldText(s?: string): string {
   return (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -245,9 +256,12 @@ function sameStreetAddress(a: Place, b: Place): boolean {
 
 export async function resolvePlace(
   query: string,
-  opts: { near?: string; fetchImpl?: Fetch; savedPlaces?: SavedPlace[] } = {},
+  opts: { near?: string; fetchImpl?: Fetch; savedPlaces?: SavedPlace[]; addressHint?: string } = {},
 ): Promise<PlaceResolution> {
   const attempts: Attempt[] = [];
+  query = stripFiller(query);
+  // The host found a street address on the web: check it exists on the map and fits what the person said.
+  if (opts.addressHint?.trim()) return resolveHint(query, opts.addressHint.trim(), opts.fetchImpl ?? fetch);
   // The person's own saved places come first: free, instant, and exactly what they mean.
   const saved = matchSavedPlace(query, opts.savedPlaces ?? loadSavedPlaces());
   if (saved) {
@@ -279,7 +293,7 @@ export async function resolvePlace(
     const match = check.value?.find((p) => distanceMeters(p, place) < 300 || sameStreetAddress(p, place));
     if (match) {
       confidence = "confirmed";
-      confirmation = `${other.name} agrees (${match.address})`;
+      confirmation = `confirmed by two map services, ${result.provider.name.split(" (")[0]} and ${other.name}`;
       attempts[attempts.length - 1] = { ...attempts[attempts.length - 1], reason: `agrees: ${match.address}` };
       if (!place.postcode && match.postcode) place.postcode = match.postcode;
       break;
@@ -294,4 +308,20 @@ export async function resolvePlace(
   const far = rest.filter((p) => p.houseNumber && p.street && distanceMeters(p, place) > 2_000);
   const status = far.length > 0 && confidence !== "confirmed" ? "ambiguous" : "resolved";
   return { status, place, confidence, confirmation, alternatives: far.slice(0, 3), attempts };
+}
+
+async function resolveHint(query: string, hint: string, f: Fetch): Promise<PlaceResolution> {
+  const attempts: Attempt[] = [{ step: "resolve address", agent: "Web search (run by you)", source: "public-api", outcome: "ok", reason: `suggested ${hint} for "${query}"`, ms: 0 }];
+  const streets = namedStreets(query);
+  const result = await failover("check web result on the map", [nominatimProvider(hint, f), photonProvider(hint, f)], (places) => {
+    const base = verifyPlace(hint)(places);
+    if (base) return base;
+    const street = foldText(places[0].street);
+    if (streets.length && !streets.some((st) => street.includes(st))) return `${places[0].address} isn't on ${streets.join(" or ")}, which is where the person said`;
+    return null;
+  });
+  attempts.push(...result.attempts);
+  if (!result.value) return { status: "not_found", place: null, confidence: "none", alternatives: [], attempts };
+  const place = { ...result.value[0], name: query };
+  return { status: "resolved", place, confidence: "confirmed", confirmation: `a web search found it and ${result.provider!.name} confirmed the address exists`, alternatives: [], attempts };
 }

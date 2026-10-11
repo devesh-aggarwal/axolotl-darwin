@@ -50,10 +50,16 @@ export async function planRecovery(goal: string, failure: string, failedTool?: s
     case "needs_input": {
       const fragment = placeFragment(goal, failure);
       plan.diagnosis = "The agent stopped to ask for something a lookup could answer.";
-      plan.nextAction = fragment
-        ? `Don't ask the person. Call axolotl_resolve_place with "${fragment}" and pass the verified address back to the failed tool.`
-        : "Don't ask the person yet. If the missing piece is a place or address, call axolotl_resolve_place with whatever name or fragment you already have.";
-      if (fragment) plan.useTool = { name: "axolotl_resolve_place", arguments: { query: fragment } };
+      if (fragment && isFood) {
+        // Handing the address back to a delivery plugin that insists the person type it just triggers another question.
+        plan.nextAction = `Don't ask the person. Call axolotl_add_to_cart with deliver_to "${fragment}": Axolotl locates the place and plans a route that takes the address directly.`;
+        plan.useTool = { name: "axolotl_add_to_cart", arguments: { item: "<what they asked for>", deliver_to: fragment, host_tools: ["<your delivery plugins and browser tool>"], can_browse: true } };
+      } else if (fragment) {
+        plan.nextAction = `Don't ask the person. Call axolotl_resolve_place with "${fragment}" and use the verified address.`;
+        plan.useTool = { name: "axolotl_resolve_place", arguments: { query: fragment } };
+      } else {
+        plan.nextAction = "Don't ask the person yet. If the missing piece is a place or address, call axolotl_resolve_place with whatever name or fragment you already have.";
+      }
       break;
     }
     case "capability_missing":

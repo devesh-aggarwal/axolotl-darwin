@@ -53,7 +53,7 @@ export function parseHostTools(input: unknown): HostTool[] {
 }
 
 /** Most likely to produce a real cart first: a plugin with a cart tool, then plugin search + browser, then the site in the browser. */
-export function planHostRoutes(item: string, address: Place, toolsIn: HostTool[], canBrowse: boolean, groceries: boolean): HostRoute[] {
+export function planHostRoutes(item: string, address: Place, toolsIn: HostTool[], canBrowse: boolean, groceries: boolean, located = false): HostRoute[] {
   const text = (t: HostTool) => `${t.name} ${t.description ?? ""}`;
   // A plugin that says it only does groceries can't fetch restaurant food, even if its company can.
   const usable = (t: HostTool) => groceries || !/grocer/i.test(t.description ?? "") || /restaurant|takeout|meal/i.test(t.description ?? "");
@@ -97,12 +97,14 @@ export function planHostRoutes(item: string, address: Place, toolsIn: HostTool[]
   }
   if (browser) {
     for (const p of providers.filter((pr) => pr.restaurants || groceries)) {
-      if (routes.some((r) => r.id.startsWith(slug(p.name)))) continue;
+      if (!located && routes.some((r) => r.id.startsWith(slug(p.name)))) continue;
       routes.push({
         id: `${slug(p.name)}-site`,
         via: `${p.name} website in ${yourBrowser}`,
         kind: "browser_site",
-        why: `No ${p.name} plugin here, so Axolotl uses the ${p.name} website through ${yourBrowser} as a backup.`,
+        why: tools.some((t) => p.match.test(text(t)))
+          ? `The ${p.name} plugin can't add to a cart and wants the person to type the address, so Axolotl goes straight to the ${p.name} website through ${yourBrowser} with the address it located.`
+          : `No ${p.name} plugin here, so Axolotl uses the ${p.name} website through ${yourBrowser}.`,
         steps: [
           `Open ${p.searchUrl(item)} with ${yourBrowser} and set the delivery address to "${addr}".`,
           `Pick a store that sells "${item}", add 1 to the cart, choosing free/default options.`,
@@ -110,6 +112,12 @@ export function planHostRoutes(item: string, address: Place, toolsIn: HostTool[]
         ],
       });
     }
+  }
+  // A located address goes in the delivery site directly. Plugin searches whose rules make the person
+  // type the address again come after, still available as a backup.
+  if (located) {
+    const rank = (r: HostRoute) => (r.kind === "plugin_cart" ? 0 : r.kind === "browser_site" ? 1 : 2);
+    routes.sort((a, b) => rank(a) - rank(b));
   }
   return routes;
 }
@@ -151,12 +159,12 @@ export function verifyHostCart(cartText: string, item: string, address: Place, m
 }
 
 /** One line the host can show the person, so they can see what Axolotl did. */
-export function creditLine(routeId: string, address: Place, fromSavedPlaces: boolean): string {
-  const where = fromSavedPlaces ? `found ${address.address} in your saved places` : `resolved the address to ${address.address}`;
+export function creditLine(routeId: string, address: Place, locatedFrom: string | null): string {
+  const where = locatedFrom ? `located ${locatedFrom}` : `checked ${address.address} on the map`;
   const how = routeId.endsWith("-search-browser")
-    ? `routed around the plugin's missing add-to-cart tool by building the cart in the browser`
+    ? "routed around the plugin's missing add-to-cart tool by building the cart in the browser"
     : routeId.endsWith("-site")
-      ? "switched to the delivery site in the browser as a backup"
+      ? "built the cart on the delivery website in the browser because the plugin can't add to a cart"
       : "picked the plugin that can add to the cart";
   return `Axolotl ${where}, ${how}, and verified the cart (right item, right address, not checked out).`;
 }

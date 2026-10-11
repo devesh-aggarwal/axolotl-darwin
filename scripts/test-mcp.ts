@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { handleAxolotlMcp } from "@/lib/mcp/server";
 import { classify, planRecovery } from "@/lib/mcp/recover";
-import { matchSavedPlace, resolvePlace, verifyPlace } from "@/lib/mcp/places";
+import { matchSavedPlace, resolvePlace, stripFiller, verifyPlace } from "@/lib/mcp/places";
 import { orderFood } from "@/lib/mcp/ordering";
 import { parseHostTools, planHostRoutes, verifyHostCart } from "@/lib/mcp/hostRoutes";
 
@@ -101,9 +101,10 @@ async function main() {
     assert.equal(classify("The Uber Eats plugin only exposes search_uber_eats; it has no add-to-cart tool, so I couldn't add the crepe."), "capability_missing");
     assert.equal(classify("Correct, the Uber Eats plugin available here can search restaurants and food, but can't add items to your cart. I overstated what I could do earlier."), "capability_missing");
   });
-  await check("needs_input picks the delivery place, not 'my cart'", async () => {
+  await check("needs_input picks the delivery place, not 'my cart', and routes food to add_to_cart", async () => {
     const plan = await planRecovery("Add a crepe from a bakery to my Uber Eats cart. Deliver to the a16z Sansome St office.", "A full delivery address is required: street number, street name.");
-    assert.equal(plan.useTool?.arguments.query, "a16z Sansome St office");
+    assert.equal(plan.useTool?.name, "axolotl_add_to_cart", "food goes straight to add_to_cart, not back to the plugin");
+    assert.equal(plan.useTool?.arguments.deliver_to, "a16z Sansome St office");
   });
   await check("timeouts and logins are told apart", () => {
     assert.equal(classify("Request timed out after 30s"), "transient");
@@ -139,6 +140,25 @@ async function main() {
     assert.equal(matchSavedPlace("the a16z Sansome St office", saved)?.address, "1025 Sansome St, San Francisco, CA");
     assert.equal(matchSavedPlace("sansome st", saved), null, "a street alone doesn't match a saved place");
     assert.equal(matchSavedPlace("castano stanford", saved), null);
+  });
+
+  await check("filler like 'my location at' is stripped before lookup", () => {
+    assert.equal(stripFiller("my location at Salesforce Tower"), "Salesforce Tower");
+    assert.equal(stripFiller("the office at 415 Mission St"), "415 Mission St");
+    assert.equal(stripFiller("Salesforce Tower"), "Salesforce Tower");
+  });
+  await check("a web result on the wrong street is rejected (said Sansome, web says Townsend)", async () => {
+    const townsend = (async () => Response.json([{ lat: "37.7786", lon: "-122.3893", name: "", address: { house_number: "180", road: "Townsend Street", city: "San Francisco", state: "California", postcode: "94107" } }])) as unknown as typeof fetch;
+    const r = await resolvePlace("a16z sansome st", { addressHint: "180 Townsend St, San Francisco, CA", fetchImpl: townsend, savedPlaces: [] });
+    assert.equal(r.status, "not_found");
+    assert.match(r.attempts.map((a) => a.reason).join(" "), /isn't on sansome/);
+  });
+  await check("a web result that checks out on the map resolves, credited to the web search", async () => {
+    const mission = (async () => Response.json([{ lat: "37.7897", lon: "-122.3972", name: "Salesforce Tower", address: { house_number: "415", road: "Mission Street", city: "San Francisco", state: "California", postcode: "94105" } }])) as unknown as typeof fetch;
+    const r = await resolvePlace("Salesforce Tower", { addressHint: "415 Mission St, San Francisco, CA 94105", fetchImpl: mission, savedPlaces: [] });
+    assert.equal(r.status, "resolved");
+    assert.equal(r.place!.houseNumber, "415");
+    assert.equal(r.attempts[0].agent, "Web search (run by you)");
   });
 
   console.log("ordering (simulated platforms)");
@@ -183,6 +203,11 @@ async function main() {
     assert.match(routes[0].why, /no add-to-cart tool, so Axolotl routes the cart step around it/);
     const named = planHostRoutes("protein bowl", office, [...codexTools, { name: "mcp__cua_repl", description: "browser automation" }], false, false);
     assert.match(named[0].steps[1], /mcp__cua_repl/, "names the host's browser tool");
+  });
+  await check("a located address goes to the delivery site first, plugin search (which makes the person retype it) after", () => {
+    const routes = planHostRoutes("protein bowl", office, [...codexTools, { name: "mcp__cua_repl", description: "browser automation" }], true, false, true);
+    assert.equal(routes[0].id, "uber-eats-site");
+    assert.ok(routes.findIndex((r) => r.id === "uber-eats-search-browser") > 0, "plugin search kept as a backup");
   });
   await check("a plugin with a cart tool goes first; no plugins and no browser means no route", () => {
     const routes = planHostRoutes("pizza", office, parseHostTools(["grubhub_add_to_cart: Add items to a Grubhub cart", "uber_eats_search"]), true, false);

@@ -8,7 +8,7 @@ import { demoSiteUrl, env } from "@/lib/env";
 import { routeAgents } from "@/lib/mcp/agents";
 import { renderAttempts, type Attempt } from "@/lib/mcp/failover";
 import { confirmOrder, orderFood, type DemoFault } from "@/lib/mcp/ordering";
-import { resolvePlace, type PlaceResolution } from "@/lib/mcp/places";
+import { resolvePlace, stripFiller, type PlaceResolution } from "@/lib/mcp/places";
 import { creditLine, parseHostTools, planHostRoutes, verifyHostCart } from "@/lib/mcp/hostRoutes";
 import { planRecovery } from "@/lib/mcp/recover";
 
@@ -58,15 +58,24 @@ function baseUrl(): string {
 
 /** Saved places and map lookups, cached for ten minutes so plan and verify agree and stay fast. */
 const placeCache = new Map<string, { at: number; value: Promise<PlaceResolution> }>();
-function resolveCached(query: string): Promise<PlaceResolution> {
-  const key = query.trim().toLowerCase();
+function resolveCached(query: string, addressHint?: string, near?: string): Promise<PlaceResolution> {
+  const key = `${query.trim().toLowerCase()}|${(addressHint ?? "").toLowerCase()}|${(near ?? "").toLowerCase()}`;
   const hit = placeCache.get(key);
   if (hit && Date.now() - hit.at < 10 * 60_000) return hit.value;
-  const value = resolvePlace(query);
+  const value = resolvePlace(query, { addressHint, near });
   value.catch(() => placeCache.delete(key));
   placeCache.set(key, { at: Date.now(), value });
   if (placeCache.size > 200) placeCache.delete(placeCache.keys().next().value as string);
   return value;
+}
+
+/** Maps didn't know the place: have the host search the web, then bring the address back to be checked. */
+function webLookupAsk(query: string, triedHint: boolean): string {
+  if (triedHint) return `The address you found for "${query}" didn't check out on the map (see below). Try the web search once more with a different result; if that fails too, ask the person for the street address.`;
+  return (
+    `Map services don't know "${query}". Next step, don't ask the person yet: run a web search for "${query} street address", ` +
+    `then call this tool again with query "${query}" and address_hint set to the street address you found. Axolotl will check it on the map.`
+  );
 }
 
 async function simulatedCart(args: Args, item: string, deliverTo: string): Promise<ToolResult> {
@@ -97,18 +106,20 @@ export const TOOLS: ToolDef[] = [
       properties: {
         query: { type: "string", description: "Place name, building, business or partial address, as the person said it" },
         near: { type: "string", description: "Optional city or area to bias the search" },
+        address_hint: { type: "string", description: "A street address you found with a web search after Axolotl asked for one; Axolotl checks it on the map" },
       },
       required: ["query"],
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
     call: async (args) => {
-      const r = await resolvePlace(need(args, "query"), { near: str(args.near) });
+      const r = await resolveCached(need(args, "query"), str(args.address_hint), str(args.near));
       const head =
         r.status === "not_found"
-          ? `Couldn't resolve "${str(args.query)}" from any source.`
+          ? webLookupAsk(need(args, "query"), Boolean(str(args.address_hint)))
           : r.status === "ambiguous"
             ? `Several places match. Best: ${r.place!.address}. Others: ${r.alternatives.map((a) => a.address).join(" | ")}. Ask which one.`
-            : `${r.place!.name ? `${r.place!.name}: ` : ""}${r.place!.address} (${r.confidence === "confirmed" ? `verified, ${r.confirmation}` : "one source only"}).`;
+            : `${r.place!.name ? `${r.place!.name}: ` : ""}${r.place!.address} (${r.confidence === "confirmed" ? `verified: ${r.confirmation}` : "one map source only"}). ` +
+              "This is the place the person named, located by Axolotl. For delivery, call axolotl_add_to_cart with this deliver_to: its plan uses routes that take this address directly, so there's no need to ask the person to type it again.";
       return { text: head + trace(r.attempts), structured: { ...r } };
     },
   },
@@ -117,7 +128,7 @@ export const TOOLS: ToolDef[] = [
     title: "Get a food item into a real delivery cart, with failover",
     description:
       "Use whenever a delivery plugin can only search, can't add to cart, needs a full address, or fails. " +
-      "Axolotl resolves the delivery place (saved places first, then maps) and returns an ordered plan that uses YOUR OWN tools: " +
+      "Axolotl locates the delivery place (map services, then a web search you run if the maps don't know it) and returns an ordered plan that uses YOUR OWN tools: " +
       "a delivery plugin with a cart tool first, then plugin search plus your browser, then the delivery site in your browser. " +
       "Axolotl can't call your other plugins itself, so pass their names in host_tools. Follow the first route, then call axolotl_verify_cart with what the cart shows; " +
       "if it fails, take the next route. It never checks out or pays. simulate=true runs Axolotl's simulated delivery agents instead (demos only).",
@@ -125,7 +136,8 @@ export const TOOLS: ToolDef[] = [
       type: "object",
       properties: {
         item: { type: "string", description: "What to get, e.g. \"protein bowl\"" },
-        deliver_to: { type: "string", description: "Delivery place as the person said it (\"the a16z sansome office\") or a street address" },
+        deliver_to: { type: "string", description: "Delivery place as the person said it (\"Salesforce Tower\") or a street address" },
+        address_hint: { type: "string", description: "A street address you found by web search after Axolotl asked for one" },
         host_tools: {
           type: "array",
           items: { type: "string" },
@@ -148,20 +160,20 @@ export const TOOLS: ToolDef[] = [
       const deliverTo = need(args, "deliver_to");
       if (args.simulate === true) return simulatedCart(args, item, deliverTo);
 
-      const address = await resolveCached(deliverTo);
+      const address = await resolveCached(deliverTo, str(args.address_hint));
       if (!address.place || address.status !== "resolved") {
         const ask =
           address.status === "ambiguous"
             ? `"${deliverTo}" matches more than one place: ${[address.place, ...address.alternatives].map((p) => p?.address).join(" | ")}. Ask which one.`
-            : `No source could find "${deliverTo}". Ask the person for a street address.`;
+            : webLookupAsk(deliverTo, Boolean(str(args.address_hint))).replace("call this tool again", "call axolotl_add_to_cart again");
         return { text: ask + trace(address.attempts), structured: { status: address.status, address }, isError: false };
       }
       const place = address.place;
-      const routes = planHostRoutes(item, place, parseHostTools(args.host_tools), args.can_browse === true, args.groceries === true);
-      const fromSaved = address.attempts.some((a) => a.agent === "Your saved places" && a.outcome === "ok");
-      const addrLine =
-        `Deliver to ${place.address}` +
-        (fromSaved ? " (from the person's own saved places, so it is their address, not a lookup guess; no need to ask them to confirm it)." : ` (${address.confidence === "confirmed" ? "confirmed by two map sources" : "from one map source; confirm it if a plugin requires that"}).`);
+      // Typed street address vs a place Axolotl located: located addresses go through the delivery site,
+      // where the address is entered directly, not through plugin tools that insist the person type it.
+      const located = !/^\s*\d+\s+\S/.test(deliverTo);
+      const routes = planHostRoutes(item, place, parseHostTools(args.host_tools), args.can_browse === true, args.groceries === true, located);
+      const addrLine = `Deliver to ${place.address}: ${located ? `Axolotl located "${stripFiller(deliverTo)}", ${address.confirmation ?? "from one map service"}` : "the address the person gave, checked on the map"}.`;
       if (routes.length === 0) {
         return {
           text:
@@ -203,8 +215,8 @@ export const TOOLS: ToolDef[] = [
       const address = await resolveCached(need(args, "deliver_to"));
       if (!address.place) return { text: "Can't verify: the delivery address doesn't resolve.", structured: {}, isError: true };
       const route = str(args.route_id) ?? "unspecified route";
-      const fromSaved = address.attempts.some((a) => a.agent === "Your saved places" && a.outcome === "ok");
-      const credit = creditLine(route, address.place, fromSaved);
+      const deliverTo = need(args, "deliver_to");
+      const credit = creditLine(route, address.place, /^\s*\d+\s+\S/.test(deliverTo) ? null : `${stripFiller(deliverTo)} at ${address.place.address}${address.confirmation ? ` (${address.confirmation})` : ""}`);
       const check = verifyHostCart(need(args, "cart_text"), need(args, "item"), address.place, num(args.max_total_usd));
       const attempts: Attempt[] = [
         { step: "verify cart", agent: route, source: "public-api", outcome: check.verdict === "pass" ? "ok" : "rejected", reason: check.verdict === "pass" ? `right item, delivering to ${address.place.address}${check.found.totalUsd !== undefined ? `, $${check.found.totalUsd.toFixed(2)}` : ""}` : check.problems.join("; "), ms: 0 },
