@@ -135,8 +135,7 @@ function BigNumbers({ report, onShowTimeline }: { report: RunReport; onShowTimel
             <span className="font-medium" style={{ color: recall.found >= recall.expected ? "var(--s-passed)" : "var(--s-verifying)" }}>
               {recall.found} of {recall.expected}
             </span>{" "}
-            planted issues on the demo site
-.
+            planted issues on the demo site.
           </span>
         )}
       </Stat>
