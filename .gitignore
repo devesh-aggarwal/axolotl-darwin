@@ -24,3 +24,6 @@ data/llm-usage.json
 # Claude Code personal settings
 .claude/settings.local.json
 .claude/launch.json
+
+# rendered demo videos
+scripts/demo-video/out/

@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Axolotl: with and without</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Same world as the Axolotl app: calm light surfaces, pink means "healed", red means "failed",
+     violet means "switched to a backup". Sized for a 1920x1080 recording read from across a room. */
+  :root {
+    --bg: #f7f7f5;
+    --panel: #ffffff;
+    --panel-2: #f3f3f0;
+    --line: #e8e7e3;
+    --line-strong: #d6d4ce;
+    --ink: #1d1d1b;
+    --ink-2: #3f3f3a;
+    --muted: #62615a;
+    --passed: #147a4d;
+    --passed-soft: #eaf5ef;
+    --failed: #c42c3a;
+    --failed-soft: #fcefef;
+    --swapping: #6a48dc;
+    --regrow: #bf2f78;
+    --regrow-soft: #fcf0f6;
+    --regrow-line: #efc3da;
+    --shadow: 0 1px 2px rgba(29, 29, 27, 0.05), 0 6px 20px rgba(29, 29, 27, 0.06);
+    --sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 19px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+  ::selection { background: color-mix(in srgb, var(--regrow) 22%, transparent); }
+  body { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; overflow: hidden; }
+
+  header { padding: 34px 56px 22px; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 32px; }
+  h1 { margin: 0; font-size: 44px; line-height: 1.08; letter-spacing: -0.025em; font-weight: 650; text-wrap: balance; }
+  h1 .pink { color: var(--regrow); }
+  .prompt { margin-top: 18px; display: flex; gap: 14px; align-items: center; }
+  .prompt-label { font-size: 15px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+  .prompt-text { font-size: 23px; font-weight: 500; background: var(--ink); color: #fff; padding: 12px 20px; border-radius: 14px; letter-spacing: -0.01em; }
+  .meta { text-align: right; color: var(--muted); font-size: 15px; line-height: 1.5; }
+  .meta strong { color: var(--ink-2); font-weight: 600; }
+
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding: 0 56px; min-height: 0; }
+  .pane { background: var(--panel); border-radius: 16px; box-shadow: var(--shadow); display: grid; grid-template-rows: auto 1fr auto; min-height: 0; overflow: hidden; }
+  .pane-head { padding: 20px 28px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+  .pane-title { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
+  .pane.with .pane-title { color: var(--regrow); }
+  .pane-sub { font-size: 15px; color: var(--muted); }
+  .feed { overflow: hidden; padding: 20px 28px 8px; position: relative; }
+  .feed-inner { display: flex; flex-direction: column; gap: 14px; transition: transform 700ms var(--ease); }
+
+  .say { font-size: 19px; color: var(--ink); max-width: 68ch; }
+  .say p { margin: 0 0 10px; }
+  .say ul { margin: 0 0 10px; padding-left: 22px; }
+  .say li { margin: 3px 0; }
+  .say strong { font-weight: 650; }
+  .say code { font-family: var(--mono); font-size: 0.85em; background: var(--panel-2); padding: 1px 6px; border-radius: 5px; }
+  .caret { display: inline-block; width: 2px; height: 1.05em; background: var(--ink); vertical-align: -0.15em; margin-left: 1px; animation: blink 900ms steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .tool { background: var(--panel-2); border-radius: 12px; padding: 12px 16px; font-size: 16px; display: grid; gap: 6px; }
+  .tool-head { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--ink-2); min-width: 0; }
+  .tool-head > span:first-of-type { white-space: nowrap; }
+  .tool-head .args { font-family: var(--mono); font-size: 14px; font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tool-result { display: flex; gap: 10px; align-items: flex-start; color: var(--ink-2); min-width: 0; }
+  .tool-result > span:not(.sim) { min-width: 0; overflow-wrap: anywhere; }
+  .tool-result.bad { color: var(--failed); }
+  .tool-result.good { color: var(--passed); }
+  .tool-result .sim { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+  .attempts { display: grid; gap: 4px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line-strong); }
+  .attempt { display: grid; grid-template-columns: 20px 1fr; gap: 8px; font-size: 15px; color: var(--ink-2); opacity: 0; transform: translateY(4px); transition: opacity 360ms var(--ease), transform 360ms var(--ease); }
+  .attempt.in { opacity: 1; transform: none; }
+  .attempt .who { font-weight: 600; }
+  .attempt.ok .who { color: var(--passed); }
+  .attempt.rejected .who, .attempt.failed .who { color: var(--failed); }
+  .attempt.skipped .who { color: var(--swapping); }
+  .attempt .why { color: var(--muted); }
+  svg.i { width: 18px; height: 18px; flex: none; margin-top: 2px; }
+  .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line-strong); border-top-color: var(--ink-2); animation: spin 700ms linear infinite; flex: none; margin-top: 3px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* The one authored moment: the give-up gets caught and the branch regrows. */
+  .hook { border-radius: 12px; background: var(--regrow-soft); border: 1px solid var(--regrow-line); padding: 14px 18px; display: flex; gap: 12px; align-items: center; color: var(--regrow); font-weight: 600; font-size: 18px;
+          clip-path: inset(0 100% 0 0 round 12px); transition: clip-path 900ms var(--ease); }
+  .hook.in { clip-path: inset(0 0 0 0 round 12px); }
+  .hook q { font-weight: 500; color: var(--ink-2); quotes: "“" "”"; }
+
+  .verdict { border-top: 1px solid var(--line); padding: 16px 28px 20px; display: grid; gap: 8px; opacity: 0; transform: translateY(8px); transition: opacity 600ms var(--ease), transform 600ms var(--ease); }
+  .verdict.in { opacity: 1; transform: none; }
+  .verdict-row { display: flex; gap: 10px; align-items: flex-start; font-size: 18px; font-weight: 500; }
+  .verdict-row.bad { color: var(--failed); }
+  .verdict-row.good { color: var(--passed); }
+  .verdict-row.note { color: var(--muted); font-size: 15px; font-weight: 400; }
+
+  footer { padding: 16px 56px 22px; font-size: 14px; color: var(--muted); display: flex; justify-content: space-between; gap: 24px; }
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Same prompt, same model. <span class="pink">One run has Axolotl.</span></h1>
+      <div class="prompt"><span class="prompt-label">One-shot prompt</span><span class="prompt-text">Use the Uber Eats plugin to add a crepe from a bakery to my cart. Deliver to the a16z Sansome St office.</span></div>
+    </div>
+    <div class="meta"><strong>Claude Code, headless</strong><br>recorded Oct 11, 2026<br>replayed at reading speed</div>
+  </header>
+  <main>
+    <section class="pane without" aria-label="Without Axolotl">
+      <div class="pane-head"><span class="pane-title">Without Axolotl</span><span class="pane-sub">Uber Eats plugin only</span></div>
+      <div class="feed"><div class="feed-inner" id="feed-without"></div></div>
+      <div class="verdict" id="verdict-without"></div>
+    </section>
+    <section class="pane with" aria-label="With Axolotl">
+      <div class="pane-head"><span class="pane-title">With Axolotl</span><span class="pane-sub">Uber Eats plugin + Axolotl MCP + stop hook</span></div>
+      <div class="feed"><div class="feed-inner" id="feed-with"></div></div>
+      <div class="verdict" id="verdict-with"></div>
+    </section>
+  </main>
+  <footer>
+    <span>Both transcripts are real runs, unedited. The Uber Eats plugin and delivery platforms are simulated, labelled “simulated”, and nothing was ordered. Address lookup is real (OpenStreetMap).</span>
+    <span>Axolotl · built on Darwin</span>
+  </footer>
+
+<script src="transcripts.js"></script>
+<script>
+  const ICONS = {
+    ok: '<svg class="i" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>',
+    bad: '<svg class="i" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"/></svg>',
+    skip: '<svg class="i" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h11M11 6l4 4-4 4"/></svg>',
+    tool: '<svg class="i" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4l-4 6 4 6M13 4l4 6-4 6"/></svg>',
+    hook: '<svg class="i" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5.5A6.5 6.5 0 1 0 16.5 11"/><path d="M15.5 2.5v3.5H12"/></svg>',
+    note: '<svg class="i" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.2v.1"/></svg>',
+  };
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  // Paragraphs and "- " lists; mid-stream, a dangling ** is hidden instead of shown raw.
+  function markdown(src) {
+    return src.split(/\n{2,}/).map((b) => {
+      let html = "";
+      let para = [];
+      let list = [];
+      const flushPara = () => { if (para.length) html += `<p>${para.map(inline).join("<br>")}</p>`; para = []; };
+      const flushList = () => { if (list.length) html += `<ul>${list.map((l) => `<li>${inline(l)}</li>`).join("")}</ul>`; list = []; };
+      for (const line of b.split("\n")) {
+        if (/^\s*[-*] /.test(line)) { flushPara(); list.push(line.replace(/^\s*[-*] /, "")); }
+        else { flushList(); para.push(line); }
+      }
+      flushPara();
+      flushList();
+      return html;
+    }).join("").replace(/\*\*/g, "");
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const CHARS_PER_SEC = 80;
+
+  function keepBottom(feed) {
+    const outer = feed.parentElement;
+    const over = feed.scrollHeight - outer.clientHeight + 16;
+    feed.style.transform = over > 0 ? `translateY(${-over}px)` : "none";
+  }
+
+  function argsText(input) {
+    if (input.failed_tool) return `failed step: ${input.failed_tool.replace(/^mcp__[\w-]+__/, "")}`;
+    const pick = input.delivery_address ?? input.deliver_to ?? input.query ?? input.goal ?? "";
+    const item = input.item ? `${input.item} → ` : "";
+    return `${item}${pick}`;
+  }
+
+  async function playSay(feed, text) {
+    const el = document.createElement("div");
+    el.className = "say";
+    feed.appendChild(el);
+    const step = 3;
+    for (let i = 0; i <= text.length; i += step) {
+      el.innerHTML = markdown(text.slice(0, i)) + '<span class="caret"></span>';
+      keepBottom(feed);
+      await sleep((1000 / CHARS_PER_SEC) * step);
+    }
+    el.innerHTML = markdown(text);
+    keepBottom(feed);
+  }
+
+  async function playTool(feed, ev) {
+    const el = document.createElement("div");
+    el.className = "tool";
+    el.innerHTML = `<div class="tool-head">${ICONS.tool}<span>${esc(ev.tool)}</span><span class="args">${esc(argsText(ev.input))}</span></div><div class="tool-result"><span class="spin"></span><span>Working…</span></div>`;
+    feed.appendChild(el);
+    keepBottom(feed);
+    await sleep(1100);
+    const r = ev.result ?? { ok: false, text: "No result" };
+    const res = el.querySelector(".tool-result");
+    res.className = `tool-result ${r.ok ? "good" : "bad"}`;
+    res.innerHTML = `${r.ok ? ICONS.ok : ICONS.bad}<span>${esc(r.text)}</span>${r.simulated ? '<span class="sim">simulated</span>' : ""}`;
+    keepBottom(feed);
+    if (r.attempts?.length) {
+      const list = document.createElement("div");
+      list.className = "attempts";
+      el.appendChild(list);
+      for (const a of r.attempts) {
+        const row = document.createElement("div");
+        row.className = `attempt ${a.outcome}`;
+        const icon = a.outcome === "ok" ? ICONS.ok : a.outcome === "skipped" ? ICONS.skip : ICONS.bad;
+        const sim = a.source === "simulated" ? " (simulated)" : "";
+        row.innerHTML = `${icon}<span><span class="who">${esc(a.agent)}${sim}</span> <span class="why">${esc(a.reason)}</span></span>`;
+        list.appendChild(row);
+        keepBottom(feed);
+        await sleep(60);
+        row.classList.add("in");
+        await sleep(650);
+      }
+    }
+    await sleep(500);
+  }
+
+  async function playHook(feed, ev) {
+    const el = document.createElement("div");
+    el.className = "hook";
+    el.innerHTML = `${ICONS.hook}<span>Axolotl caught the give-up <q>${esc(ev.matched)}</q> and sent the agent back to recover</span>`;
+    feed.appendChild(el);
+    keepBottom(feed);
+    await sleep(80);
+    el.classList.add("in");
+    await sleep(2600);
+  }
+
+  function showVerdict(id, rows) {
+    const v = document.getElementById(id);
+    v.innerHTML = rows.map(([kind, text]) => `<div class="verdict-row ${kind}">${ICONS[kind === "good" ? "ok" : kind === "bad" ? "bad" : "note"]}<span>${esc(text)}</span></div>`).join("");
+    v.classList.add("in");
+  }
+
+  async function play(side, verdict) {
+    const feed = document.getElementById(`feed-${side}`);
+    for (const ev of window.TRANSCRIPTS[side].events) {
+      if (ev.kind === "say") await playSay(feed, ev.text);
+      else if (ev.kind === "tool") await playTool(feed, ev);
+      else if (ev.kind === "hook") await playHook(feed, ev);
+      await sleep(400);
+    }
+    await sleep(500);
+    showVerdict(`verdict-${side}`, verdict);
+    // Leave room for the verdict.
+    keepBottom(feed);
+  }
+
+  window.__done = false;
+  window.start = async () => {
+    const t = window.TRANSCRIPTS;
+    await sleep(1800);
+    await Promise.all([
+      play("without", [
+        ["bad", "Guessed an address the user never gave: 180 Sansome St"],
+        ["bad", "Nothing added to any cart"],
+        ["note", `Real run: ${Math.round(t.without.durationMs / 1000)} s, then the user takes over`],
+      ]),
+      play("with", [
+        ["good", "Give-up caught; Axolotl took over the failed step"],
+        ["good", "Guessed 180 Sansome; Axolotl used your saved address instead: 1025 Sansome St"],
+        ["good", "Uber Eats skipped (no cart tool); cart built on the backup and verified"],
+        ["note", `Stopped before checkout. Delivery platforms simulated. Real run: ${Math.round(t.with.durationMs / 1000)} s`],
+      ]),
+    ]);
+    await sleep(6000);
+    window.__done = true;
+  };
+  if (new URLSearchParams(location.search).has("autoplay")) window.start();
+</script>
+</body>
+</html>

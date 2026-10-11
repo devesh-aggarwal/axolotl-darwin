@@ -121,4 +121,13 @@ All LLM calls go through `src/lib/llm/gateway.ts` (model `gpt-5.6-luna`):
 
 - Deploy `demo-site/` publicly so real Darwin agents can reach it: `npx vercel demo-site` (the folder's `.vercelignore` keeps `ground-truth.json` private; check that `<deployed-url>/ground-truth.json` returns 404). Then set `DEMO_SITE_URL=<deployed-url>/` in `.env`. Note Vercel adds HSTS on `*.vercel.app`, which is why that planted issue is marked optional.
 - Add Darwin credentials to `.env` and ask Darwin for Act pilot access. Then run the event-day check (`docs/EVENT-DAY.md`).
-- Commits and pushes.
+
+## MCP server (Oct 11)
+
+Axolotl is also an MCP server at `/api/mcp`, so ChatGPT, Codex or Claude Code can hand it a failing step. Details and hosting: `docs/MCP.md`.
+
+- **Real:** address resolution (Photon, then Nominatim, cross-checked; "castano stanford" → 685 Escondido Road), failure triage, Darwin Search, and the audit run tools.
+- **Simulated (labelled in every answer):** food-delivery platforms and carts. Nothing is ever ordered or charged.
+- **Tested:** `scripts/test-mcp.ts` (16 checks, fake and `--live`). One real `claude -p` run with only this MCP connected took the one-shot crêpe prompt to a verified cart. A single call takes about 2 s.
+- **Auto-trigger:** `integrations/hooks/axolotl-stop-hook.mjs`, a Stop hook for Claude Code and Codex. Not installed anywhere yet.
+- **Pending:** switch `findAgents` to `engine/discovery.ts` (`discover` + `orderRoute`) once the `runtime-discovery` branch is merged.

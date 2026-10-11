@@ -10,8 +10,6 @@ Team: Swarchis Kulkarni, Devesh Aggarwal, Gautam Anand
 
 ## 0. Instructions for the coding agent (read first)
 
-- **Never commit, push, or open PRs on GitHub.** Do not run `git commit`, `git push`, `gh`, or create remotes. You may run `git init` and `git status` locally for your own tracking, nothing more.
-- When the user asks for git commands, print them for the user to run themselves. Do not run them.
 - Never put secrets in code or logs. Read keys from `.env` only. Add `.env` to `.gitignore`.
 - Darwin Act credentials are not available yet (Act is a pilot preview gated by an allowlist). Build against `MockDarwinClient` and the real public Darwin Search API (no key needed). Fully wire the real Act client so only credentials are missing.
 - Do not invent Darwin API fields. Read the OpenAPI specs linked from https://darwin.so/docs/llms.txt and code against them.
